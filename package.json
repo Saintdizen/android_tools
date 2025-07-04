@@ -1,0 +1,83 @@
+{
+  "name": "example-project",
+  "productName": "Example Project",
+  "description": "Example Project",
+  "version": "0.0.1",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron main.js",
+    "debs": "npm install --save --legacy-peer-deps --force",
+    "postinstall": "electron-builder install-app-deps",
+    "linux": "electron-builder --linux --publish always",
+    "win": "electron-builder --win --publish always",
+    "mac": "electron-builder --mac --publish always"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Saintdizen/example_project.git"
+  },
+  "keywords": [
+    "Tools"
+  ],
+  "build": {
+    "asar": false,
+    "publish": {
+      "provider": "github",
+      "owner": "saintdizen",
+      "private": false,
+      "repo": "example_project",
+      "releaseType": "release"
+    },
+    "artifactName": "${name}-${os}-${arch}-${version}.${ext}",
+    "appId": "com.example.project",
+    "linux": {
+      "category": "AudioVideo",
+      "target": [
+        "AppImage"
+      ]
+    },
+    "win": {
+      "icon": "resources/icons/app/icon.ico",
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "deleteAppDataOnUninstall": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "installerHeaderIcon": "resources/icons/app/icon.ico",
+      "installerIcon": "resources/icons/app/icon.ico"
+    },
+    "directories": {
+      "buildResources": "resources",
+      "output": "release"
+    },
+    "files": [
+      "main.js",
+      "resources/**/*",
+      "app/**/*"
+    ]
+  },
+  "author": {
+    "name": "Chuvakhin Ivan",
+    "email": "saintdizen@gmail.com"
+  },
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/Saintdizen/example_project/issues"
+  },
+  "homepage": "https://github.com/Saintdizen/example_project#readme",
+  "devDependencies": {
+    "electron-builder": "~24.6.4"
+  },
+  "dependencies": {
+    "chuijs": "~3.5.0"
+  }
+}
