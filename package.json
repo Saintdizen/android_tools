@@ -1,7 +1,7 @@
 {
-  "name": "example-project",
-  "productName": "Example Project",
-  "description": "Example Project",
+  "name": "android-tools",
+  "productName": "Android Tools",
+  "description": "Android Tools",
   "version": "0.0.1",
   "main": "main.js",
   "scripts": {
@@ -14,7 +14,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/Saintdizen/example_project.git"
+    "url": "https://github.com/Saintdizen/android_tools.git"
   },
   "keywords": [
     "Tools"
@@ -25,11 +25,11 @@
       "provider": "github",
       "owner": "saintdizen",
       "private": false,
-      "repo": "example_project",
+      "repo": "android_tools",
       "releaseType": "release"
     },
     "artifactName": "${name}-${os}-${arch}-${version}.${ext}",
-    "appId": "com.example.project",
+    "appId": "com.android.tools",
     "linux": {
       "category": "AudioVideo",
       "target": [
@@ -71,13 +71,16 @@
   },
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/Saintdizen/example_project/issues"
+    "url": "https://github.com/Saintdizen/android_tools/issues"
   },
-  "homepage": "https://github.com/Saintdizen/example_project#readme",
+  "homepage": "https://github.com/Saintdizen/android_tools#readme",
   "devDependencies": {
     "electron-builder": "~24.6.4"
   },
   "dependencies": {
-    "chuijs": "~3.5.0"
+    "appium": "^2.19.0",
+    "appium-inspector-plugin": "^2025.3.1",
+    "appium-uiautomator2-driver": "^4.2.4",
+    "chuijs": "~3.5.5"
   }
 }

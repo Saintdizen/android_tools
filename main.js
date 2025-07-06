@@ -4,10 +4,10 @@ const json = require("./package.json");
 const main = new Main({
     name: `${json.productName} (${json.version})`,
     sizes: {
-        minWidth: 960,
-        width: 960,
-        minHeight: 540,
-        height: 540
+        minWidth: 1280,
+        width: 1280,
+        minHeight: 720,
+        height: 720
     },
     minHeight: 540,
     minWidth: 960,
@@ -34,3 +34,19 @@ main.start({
 
 
 main.enableAutoUpdateApp(2000)
+
+
+const { spawn } = require('node:child_process');
+const appium = spawn('appium', ['--use-plugins=inspector', '--allow-cors']);
+appium.stdout.on('data', (data) => {
+  console.log(`stdout: ${data}`);
+});
+appium.stderr.on('data', (data) => {
+  console.error(`stderr: ${data}`);
+});
+appium.on('close', (code) => {
+  console.log(`child process exited with code ${code}`);
+});
+appium.on('error', (err) => {
+  console.error('Failed to start child process.', err);
+});
