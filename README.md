@@ -6,6 +6,11 @@ sudo chown root chrome-sandbox
 sudo chmod 4755 chrome-sandbox
 ```
 
+### Ссылки
+* Linux - https://dl.google.com/android/repository/commandlinetools-linux-13114758_latest.zip
+* Windows - https://dl.google.com/android/repository/commandlinetools-win-13114758_latest.zip
+* Mac - https://dl.google.com/android/repository/commandlinetools-mac-13114758_latest.zip
+
 ```shell
 ## Установка путей
 export ANDROID_HOME=/path_to/android-sdk

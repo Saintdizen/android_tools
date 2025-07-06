@@ -1,4 +1,4 @@
-const {Main, MenuItem, path, App} = require('chuijs');
+const {Main, MenuItem, path, App, Log} = require('chuijs');
 const json = require("./package.json");
 //
 const main = new Main({
@@ -39,14 +39,14 @@ main.enableAutoUpdateApp(2000)
 const { spawn } = require('node:child_process');
 const appium = spawn('appium', ['--use-plugins=inspector', '--allow-cors']);
 appium.stdout.on('data', (data) => {
-  console.log(`stdout: ${data}`);
+  Log.info(`stdout: ${data}`);
 });
 appium.stderr.on('data', (data) => {
-  console.error(`stderr: ${data}`);
+  Log.error(`stderr: ${data}`);
 });
 appium.on('close', (code) => {
-  console.log(`child process exited with code ${code}`);
+  Log.info(`child process exited with code ${code}`);
 });
 appium.on('error', (err) => {
-  console.error('Failed to start child process.', err);
+  Log.error('Failed to start child process.', err);
 });
