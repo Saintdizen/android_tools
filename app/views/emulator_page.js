@@ -1,4 +1,7 @@
-const {Page, ComboBox, Button, Log, Dialog, Styles, ContentBlock} = require("chuijs");
+const {Page, ComboBox, Button, Log, Dialog, Styles, ContentBlock, os, app, path, App, DownloadProgressNotification, fs} = require("chuijs");
+const decompress = require("decompress");
+const fse = require("fs-extra");
+const DownloadManager = require("@electron/remote").require("electron-download-manager");
 
 class EmulatorPage extends Page {
     open_create_dialog = new Button({title:"Создать эмулятор"})
@@ -10,11 +13,10 @@ class EmulatorPage extends Page {
         this.setFullHeight()
         this.setFullWidth()
         //
-        let create_dialog = this.#createNewEmuDialog()
-        this.open_create_dialog.addClickListener(() => create_dialog.open())
-        this.add(this.open_create_dialog, create_dialog)
+        this.#createNewEmuDialog(this.open_create_dialog)
+        this.add(this.open_create_dialog)
     }
-    #createNewEmuDialog() {
+    #createNewEmuDialog(button_open) {
         let main_block = new ContentBlock({
             direction: Styles.DIRECTION.COLUMN,
             wrap: Styles.WRAP.NOWRAP,
@@ -52,13 +54,9 @@ class EmulatorPage extends Page {
             { title: "x86_64", value: "x86_64" }
         )
         let android_emu_create = new Button({title:"Создать"})
-        android_emu_create.addClickListener(() => {
-            let string1 = ``
-
-            let str = `create avd -d "${android_device.getValue()}" -n test1 -k "system-images;${android_version.getValue()};${android_system_image.getValue()};${android_arch.getValue()}"`
-            Log.info(str)
-        })
         let dialog_close = new Button({title:"Отмена"})
+        //
+        button_open.addClickListener(() => createNewEmuDialog.open())
         //
         android_emu_create.addClickListener(() => {
             //
@@ -68,6 +66,24 @@ class EmulatorPage extends Page {
             android_arch.setDisabled(true)
             android_emu_create.setDisabled(true)
             //
+            setTimeout(async () => {
+                if (os.platform() === "linux") {
+                    await this.downloadCommandLineTools("https://dl.google.com/android/repository/commandlinetools-linux-13114758_latest.zip")
+                    await this.unzipCommandLineTools("commandlinetools-linux-13114758_latest.zip")
+                    await this.copyFolderAndRename()
+                } else if (os.platform() === "win32") {
+                    Log.info("WINDOWS")
+                } else if (os.platform() === "darwin") {
+                    Log.info("MAC")
+                }
+            }, 2000)
+
+
+
+            let string1 = ``
+
+            let str = `create avd -d "${android_device.getValue()}" -n test1 -k "system-images;${android_version.getValue()};${android_system_image.getValue()};${android_arch.getValue()}"`
+            Log.info(str)
         })
         dialog_close.addClickListener(() => {
             //
@@ -88,7 +104,65 @@ class EmulatorPage extends Page {
         //
         main_block.add(android_device, android_version, android_system_image, android_arch, android_emu_create, dialog_close)
         createNewEmuDialog.addToBody(main_block)
+        this.add(createNewEmuDialog)
         return createNewEmuDialog
+    }
+
+    async downloadCommandLineTools(link) {
+        const notif = new DownloadProgressNotification({title: "Загрузка commandlinetools"})
+        return new Promise((resolve, reject) => {
+            notif.show()
+            DownloadManager.download({
+                url: link,
+                onProgress: (progress, item) => {
+                    notif.update("Загрузка трека", item.getFilename(), Number(progress.progress).toFixed(), 100)
+                    Log.info(`${item.getFilename()} ${progress.progress}`)
+                }
+            }, (error, info) => {
+                if (error) { Log.error(error); reject(error); }
+                Log.info(info.toString());
+                notif.done()
+                resolve(info)
+            });
+        })
+    }
+
+    async unzipCommandLineTools(fileName) {
+        return new Promise((resolve, reject) => {
+            let path_file = path.join(App.userDataPath(), "downloads", fileName)
+            let dist_path = path.join(App.userDataPath(), "downloads")
+            // let dist_path = path.join(App.userDataPath(), "android-sdk", "cmdline-tools", "latest")
+            const decompress = require("decompress");
+            decompress(path_file, dist_path).then((files) => {
+                resolve(files)
+                Log.info(files)
+            }).catch((error) => {
+                reject(error)
+                Log.error(error)
+            });
+        })
+    }
+
+    async copyFolderAndRename() {
+        return new Promise((resolve, reject) => {
+            const fse = require('fs-extra');
+            let srcDir = path.join(App.userDataPath(), "downloads", "cmdline-tools")
+            let destDir = path.join(App.userDataPath(), "android-sdk", "cmdline-tools", "cmdline-tools")
+            if (!fs.existsSync(destDir)) fs.mkdirSync(destDir, {recursive: true});
+            fse.copy(srcDir, destDir, { overwrite: true }).then(() => {
+                let cmdOld = path.join(App.userDataPath(), "android-sdk", "cmdline-tools", "cmdline-tools")
+                let cmdNew = path.join(App.userDataPath(), "android-sdk", "cmdline-tools", "latest")
+                fs.rename(cmdOld, cmdNew, (err) => {
+                    if (err) { Log.error(err); return; }
+                    Log.info('Folder renamed successfully!')
+                });
+                Log.info('Folder copied successfully!')
+                resolve('Folder copied successfully!')
+            }).catch(err => {
+                Log.error(err)
+                reject(err)
+            });
+        })
     }
 }
 

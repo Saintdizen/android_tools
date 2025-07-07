@@ -1,5 +1,8 @@
 const {Main, MenuItem, path, App, Log} = require('chuijs');
 const json = require("./package.json");
+const DownloadManager = require("electron-download-manager");
+const dl_path = path.join(App.userDataPath(), 'downloads')
+DownloadManager.register({downloadFolder: dl_path});
 //
 const main = new Main({
     name: `${json.productName} (${json.version})`,
