@@ -1,10 +1,13 @@
 const {Page, ComboBox, Button, Log, Dialog, Styles, ContentBlock, os, app, path, App, DownloadProgressNotification, fs} = require("chuijs");
 const decompress = require("decompress");
 const fse = require("fs-extra");
+const {Android} = require("../src/src");
 const DownloadManager = require("@electron/remote").require("electron-download-manager");
+let android = new Android()
 
 class EmulatorPage extends Page {
     open_create_dialog = new Button({title:"Создать эмулятор"})
+    get_emu_list = new Button({title:"Обновить"})
     constructor() {
         super();
         this.setTitle('Android Эмулятор');
@@ -14,7 +17,12 @@ class EmulatorPage extends Page {
         this.setFullWidth()
         //
         this.#createNewEmuDialog(this.open_create_dialog)
-        this.add(this.open_create_dialog)
+        this.add(this.open_create_dialog, this.get_emu_list)
+
+        this.get_emu_list.addClickListener(async () => {
+            await android.startEmulator("test1")
+        })
+
     }
     #createNewEmuDialog(button_open) {
         let main_block = new ContentBlock({
@@ -71,19 +79,13 @@ class EmulatorPage extends Page {
                     await this.downloadCommandLineTools("https://dl.google.com/android/repository/commandlinetools-linux-13114758_latest.zip")
                     await this.unzipCommandLineTools("commandlinetools-linux-13114758_latest.zip")
                     await this.copyFolderAndRename()
+                    await android.installToolsLinux(android_device.getValue(), android_version.getValue(), android_system_image.getValue(), android_arch.getValue())
                 } else if (os.platform() === "win32") {
                     Log.info("WINDOWS")
                 } else if (os.platform() === "darwin") {
                     Log.info("MAC")
                 }
             }, 2000)
-
-
-
-            let string1 = ``
-
-            let str = `create avd -d "${android_device.getValue()}" -n test1 -k "system-images;${android_version.getValue()};${android_system_image.getValue()};${android_arch.getValue()}"`
-            Log.info(str)
         })
         dialog_close.addClickListener(() => {
             //
@@ -115,7 +117,7 @@ class EmulatorPage extends Page {
             DownloadManager.download({
                 url: link,
                 onProgress: (progress, item) => {
-                    notif.update("Загрузка трека", item.getFilename(), Number(progress.progress).toFixed(), 100)
+                    notif.update("Загрузка", item.getFilename(), Number(progress.progress).toFixed(), 100)
                     Log.info(`${item.getFilename()} ${progress.progress}`)
                 }
             }, (error, info) => {
