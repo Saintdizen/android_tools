@@ -1,9 +1,10 @@
-const {Main, MenuItem, Log} = require('chuijs');
+const {Main, MenuItem, Log, path} = require('chuijs');
 const json = require("./package.json");
 const DownloadManager = require("electron-download-manager");
 const {AppPaths} = require("./app/settings/paths")
 AppPaths.install()
 DownloadManager.register({downloadFolder: AppPaths.DOWNLOADS_DIR});
+const { spawn } = require('node:child_process');
 //
 const main = new Main({
     name: `${json.productName} (${json.version})`,
@@ -39,18 +40,22 @@ main.start({
 
 main.enableAutoUpdateApp(2000)
 
+let node = process.env.NODE
+let appium = path.join(__dirname, "node_modules", "appium", "index.js")
 
-const { spawn } = require('node:child_process');
-const appium = spawn('appium', ['--use-plugins=inspector', '--allow-cors']);
-appium.stdout.on('data', (data) => {
+console.log(node)
+console.log(appium)
+
+const appium_spawn = spawn(`${node}`, [`${appium}`, '--use-plugins=inspector', '--allow-cors']);
+appium_spawn.stdout.on('data', (data) => {
   Log.info(`stdout: ${data}`);
 });
-appium.stderr.on('data', (data) => {
+appium_spawn.stderr.on('data', (data) => {
   Log.error(`stderr: ${data}`);
 });
-appium.on('close', (code) => {
+appium_spawn.on('close', (code) => {
   Log.info(`child process exited with code ${code}`);
 });
-appium.on('error', (err) => {
+appium_spawn.on('error', (err) => {
   Log.error('Failed to start child process.', err);
 });

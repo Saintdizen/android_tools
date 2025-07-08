@@ -12,6 +12,7 @@ sudo chmod 4755 chrome-sandbox
 * Mac - https://dl.google.com/android/repository/commandlinetools-mac-13114758_latest.zip
 
 ```shell
+# my.AppImage --appimage-mount
 ## Установка путей
 export ANDROID_HOME=/path_to/android-sdk
 export ANDROID_SDK_ROOT=$ANDROID_HOME
