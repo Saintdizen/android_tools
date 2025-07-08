@@ -83,6 +83,7 @@
     "appium-uiautomator2-driver": "^4.2.4",
     "chuijs": "~3.5.5",
     "decompress": "^4.2.1",
-    "electron-download-manager": "^2.1.2"
+    "electron-download-manager": "^2.1.2",
+    "sqlite3": "^5.1.7"
   }
 }

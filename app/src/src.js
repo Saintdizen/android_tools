@@ -1,22 +1,18 @@
-const {Log, path, App, fs, DownloadProgressNotification, store} = require("chuijs");
+const {Log, path, fs, DownloadProgressNotification} = require("chuijs");
 const { spawn } = require('child_process');
 const { randomBytes } = require('node:crypto');
+const {AppPaths} = require("../settings/paths");
+const {DataBases} = require("../databases/start_db");
 
 
 class Android {
     #installProcess = undefined
-    #emulatorList = []
-    constructor() {
-        if (!store.get("emuList")) {
-            store.set("emuList", []);
-        } else {
-            this.#emulatorList = store.get("emuList");
-        }
-    }
-    installToolsLinux(device, android_ver, image_type, arch) {
-        let name_avd = this.#randomString(10)
+    #start_process = undefined
+    constructor() {}
+    installToolsLinux(name_avd, device, android_ver, image_type, arch) {
+        // let name_avd = this.#randomString(10)
         let install = `echo "START: Подготовка..."
-export ANDROID_HOME=${path.join(App.userDataPath(), 'android-sdk')}
+export ANDROID_HOME=${AppPaths.ANDROID_SDK}
 export ANDROID_SDK_ROOT=$ANDROID_HOME
 #
 yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses > /dev/null
@@ -31,7 +27,7 @@ yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "system-images;${android
 echo "START: Создание эмулятора Android"
 $ANDROID_HOME/cmdline-tools/latest/bin/avdmanager create avd -d "${device}" -n ${name_avd} -k "system-images;${android_ver};${image_type};${arch}"`
 
-        let path_script = this.#createScript(install, `src_${name_avd}.sh`);
+        let path_script = this.#createScript(install, name_avd, `create.sh`);
 
         this.#installProcess = spawn('sh', [path_script]);
         const notif = new DownloadProgressNotification({title: "Установка зависимостей", text: "Подготовка..."})
@@ -54,65 +50,78 @@ $ANDROID_HOME/cmdline-tools/latest/bin/avdmanager create avd -d "${device}" -n $
             } else {
                 flag_update_notification = false
             }
-
             if (flag_update_notification) notif.update("Установка зависимостей", text, Number(process).toFixed(), 100)
             Log.info(`stdout: ${data}`);
         });
 
         this.#installProcess.stderr.on('data', (data) => {
-            notif.error()
-            Log.error(`stderr: ${data}`);
+            if (new RegExp(`Android Virtual Device '.*' already exists`).test(String(data))) {
+                notif.update("Установка зависимостей", "Завершена", 100, 100)
+                notif.done()
+            } else {
+                notif.error()
+                Log.error(`stderr: ${data}`);
+            }
         });
 
         this.#installProcess.on('close', (code) => {
-            if (code !== 0) {
+            if (code !== 0 && code !== 1) {
                 notif.error()
             } else {
                 notif.done()
-                this.#emulatorList.push({
-                    name: name_avd,
-                    device: device,
-                    android_version: android_ver,
-                    image_type: image_type,
-                    arch: arch
-                })
+                this.createStartScript(name_avd)
+                setTimeout(async () => {
+                    await DataBases.AVD_DB.createAvdTable()
+                    await DataBases.AVD_DB.addAvdData(device, android_ver, image_type, arch, name_avd)
+                }, 1)
             }
             Log.info(`child process exited with code ${code}`);
         });
 
         this.#installProcess.on('error', (err) => {
-            notif.error()
+            if (new RegExp("Android Virtual Device '.*' already exists").test(String(err))) {
+                notif.update("Установка зависимостей", "Завершена", 100, 100)
+                notif.done()
+            } else {
+                notif.error()
+                Log.error(`Failed to start child process: ${err}`);
+            }
+        });
+    }
+    cancel() {
+        this.#installProcess.kill()
+    }
+    startEmulator(name) {
+        this.#start_process = spawn('sh', [path.join(AppPaths.AVD_DIR, name, "start.sh")]);
+        this.#start_process.stdout.on('data', (data) => {
+            Log.info(`stdout: ${data}`);
+        });
+        this.#start_process.stderr.on('data', (data) => {
+            Log.error(`stderr: ${data}`);
+        });
+        this.#start_process.on('close', (code) => {
+            Log.info(`close: ${code}`);
+        });
+        this.#start_process.on('error', (err) => {
             Log.error(`Failed to start child process: ${err}`);
         });
     }
-    startEmulator(name) {
+    stopEmulator() {
+        Log.info("KILL EMULATOR!")
+        //spawn('kill', [String(this.#start_process.pid)])
+        spawn('kill', [String(this.#start_process.pid + 1)])
+    }
+    createStartScript(name) {
         let start_emu = `
-export ANDROID_HOME=${path.join(App.userDataPath(), 'android-sdk')}
+export ANDROID_HOME=${AppPaths.ANDROID_SDK}
 export ANDROID_SDK_ROOT=$ANDROID_HOME
 #
 $ANDROID_HOME/emulator/emulator -avd ${name}`
-        let path_script = this.#createScript(start_emu, `start_${name}.sh`);
-        let proc = spawn('sh', [path_script]);
-
-        proc.stdout.on('data', (data) => {
-            Log.info(data);
-        });
-
-        proc.stderr.on('data', (data) => {
-            Log.error(`stderr: ${data}`);
-        });
-
-        proc.on('close', (code) => {
-            Log.info(`ЭРОН! ДОН-ДОН! ${code}`);
-        });
-
-        proc.on('error', (err) => {
-            Log.error(`Failed to start child process: ${err}`);
-        });
+        return this.#createScript(start_emu, name, `start.sh`)
     }
-    #createScript(text, name) {
-        let path_scripts = path.join(App.userDataPath(), "scripts", name)
-        let path_script = path.join(path_scripts, name)
+    #createScript(text, name_avd, name_script) {
+        let path_scripts = path.join(AppPaths.AVD_DIR, name_avd)
+        let path_script = path.join(path_scripts, name_script)
         if (!fs.existsSync(path_scripts)) {
             fs.mkdirSync(path_scripts, { recursive: true });
             Log.info(`Папка '${path_scripts}' успешно создана`)
