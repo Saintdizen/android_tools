@@ -12,7 +12,7 @@ class Android {
     installToolsLinux(name_avd, device, android_ver, image_type, arch) {
         // let name_avd = this.#randomString(10)
         let install = `echo "START: Подготовка..."
-export ANDROID_HOME=${AppPaths.ANDROID_SDK}
+export ANDROID_HOME="${AppPaths.ANDROID_SDK}"
 export ANDROID_SDK_ROOT=$ANDROID_HOME
 #
 yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses > /dev/null
@@ -29,7 +29,7 @@ $ANDROID_HOME/cmdline-tools/latest/bin/avdmanager create avd -d "${device}" -n $
 
         let path_script = this.#createScript(install, name_avd, `create.sh`);
 
-        this.#installProcess = spawn('sh', [path_script]);
+        this.#installProcess = spawn('sh', [`${path_script}`]);
         const notif = new DownloadProgressNotification({title: "Установка зависимостей", text: "Подготовка..."})
         notif.show()
         let text = undefined
@@ -92,7 +92,7 @@ $ANDROID_HOME/cmdline-tools/latest/bin/avdmanager create avd -d "${device}" -n $
         this.#installProcess.kill()
     }
     startEmulator(name) {
-        this.#start_process = spawn('sh', [path.join(AppPaths.AVD_DIR, name, "start.sh")]);
+        this.#start_process = spawn('sh', [`${path.join(AppPaths.AVD_DIR, name, "start.sh")}`]);
         this.#start_process.stdout.on('data', (data) => {
             Log.info(`stdout: ${data}`);
         });
