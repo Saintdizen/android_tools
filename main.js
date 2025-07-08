@@ -40,9 +40,11 @@ main.start({
 
 main.enableAutoUpdateApp(2000)
 
+let env = process.env
 let node = process.env.NODE
 let appium = path.join(__dirname, "node_modules", "appium", "index.js")
 
+console.log(env)
 console.log(node)
 console.log(appium)
 
