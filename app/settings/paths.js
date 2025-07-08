@@ -4,7 +4,8 @@ class AppPaths {
     static #paths = [
         path.join(App.userDataPath(), "android", 'android-sdk'),
         path.join(App.userDataPath(), "android", 'android-avd'),
-        path.join(App.userDataPath(), "android", 'downloads')
+        path.join(App.userDataPath(), "android", 'downloads'),
+        path.join(App.userDataPath(), "node_js"),
     ]
     constructor() {}
     static install() {
@@ -15,6 +16,7 @@ class AppPaths {
     static ANDROID_SDK = this.#paths[0];
     static AVD_DIR = this.#paths[1]
     static DOWNLOADS_DIR = this.#paths[2]
+    static NODE_JS_DIR = this.#paths[3]
 }
 
 exports.AppPaths = AppPaths;

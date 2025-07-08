@@ -1,10 +1,11 @@
-const {Main, MenuItem, Log, path} = require('chuijs');
+const {Main, MenuItem, Log, path, App, ipcMain} = require('chuijs');
 const json = require("./package.json");
 const DownloadManager = require("electron-download-manager");
 const {AppPaths} = require("./app/settings/paths")
+const {spawn} = require("node:child_process");
+const {DataBases} = require("./app/databases/start_db");
 AppPaths.install()
 DownloadManager.register({downloadFolder: AppPaths.DOWNLOADS_DIR});
-const { spawn } = require('node:child_process');
 //
 const main = new Main({
     name: `${json.productName} (${json.version})`,
@@ -37,27 +38,30 @@ main.start({
     globalMenu: menu
 });
 
-
 main.enableAutoUpdateApp(2000)
 
-let env = process.env
-let node = process.env.NODE
-let appium = path.join(__dirname, "node_modules", "appium", "index.js")
 
-console.log(env)
-console.log(node)
-console.log(appium)
+ipcMain.on("START_APPIUM", (event, args) => {
+    Log.info(args)
+    console.log(args)
+    let appium = path.join(__dirname, "node_modules", "appium", "index.js")
+    Log.info(appium)
+    const appium_spawn = spawn(`${args}`, [`${appium}`, '--use-plugins=inspector', '--allow-cors']);
+    appium_spawn.stdout.on('data', (data) => {
 
-const appium_spawn = spawn(`${node}`, [`${appium}`, '--use-plugins=inspector', '--allow-cors']);
-appium_spawn.stdout.on('data', (data) => {
-  Log.info(`stdout: ${data}`);
-});
-appium_spawn.stderr.on('data', (data) => {
-  Log.error(`stderr: ${data}`);
-});
-appium_spawn.on('close', (code) => {
-  Log.info(`child process exited with code ${code}`);
-});
-appium_spawn.on('error', (err) => {
-  Log.error('Failed to start child process.', err);
-});
+        if (String(data).includes("You can provide the following URLs in your client code to connect to this server")) {
+            DataBases.send("ADD_BROWSER")
+        }
+
+        Log.info(`stdout: ${data}`);
+    });
+    appium_spawn.stderr.on('data', (data) => {
+        Log.error(`stderr: ${data}`);
+    });
+    appium_spawn.on('close', (code) => {
+        Log.info(`child process exited with code ${code}`);
+    });
+    appium_spawn.on('error', (err) => {
+        Log.error('Failed to start child process.', err);
+    });
+})

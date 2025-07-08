@@ -1,4 +1,4 @@
-const {Page, WebView} = require('chuijs');
+const {Page, WebView, Spinner, ipcRenderer} = require('chuijs');
 const json = require("../../package.json")
 
 class MainPage extends Page {
@@ -12,10 +12,20 @@ class MainPage extends Page {
         this.disablePadding()
         this.add(...elements)
 
-        setTimeout(() => {
+        let spin = new Spinner(Spinner.SIZE.BIG)
+        this.add(spin)
+
+        ipcRenderer.on("ADD_BROWSER", () => {
+            this.remove(spin)
             let web = new WebView("http://localhost:4723/inspector", false);
             this.add(web)
-        }, 1000)
+        })
+
+
+        // setTimeout(() => {
+        //     let web = new WebView("http://localhost:4723/inspector", false);
+        //     this.add(web)
+        // }, 1000)
     }
 }
 
