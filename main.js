@@ -40,19 +40,19 @@ main.start({
 
 main.enableAutoUpdateApp(2000)
 
+let appium_spawn = undefined
+App.get().on("quit", () => {
+    if (process.platform === "linux") spawn('kill', [appium_spawn.pid])
+    console.log("CLOOOOOSE")
+})
 
 ipcMain.on("START_APPIUM", (event, args) => {
-    Log.info(args)
-    console.log(args)
     let appium = path.join(__dirname, "node_modules", "appium", "index.js")
-    Log.info(appium)
-    const appium_spawn = spawn(`${args}`, [`${appium}`, '--use-plugins=inspector', '--allow-cors']);
+    appium_spawn = spawn(`${args}`, [`${appium}`, '--use-plugins=inspector', '--allow-cors']);
     appium_spawn.stdout.on('data', (data) => {
-
         if (String(data).includes("You can provide the following URLs in your client code to connect to this server")) {
             DataBases.send("ADD_BROWSER")
         }
-
         Log.info(`stdout: ${data}`);
     });
     appium_spawn.stderr.on('data', (data) => {

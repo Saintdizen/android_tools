@@ -12,20 +12,19 @@ class MainPage extends Page {
         this.disablePadding()
         this.add(...elements)
 
-        let spin = new Spinner(Spinner.SIZE.BIG)
+        let spin = new Spinner(Spinner.SIZE.BIG, "auto")
+        let web = new WebView(false);
         this.add(spin)
 
         ipcRenderer.on("ADD_BROWSER", () => {
-            this.remove(spin)
-            let web = new WebView("http://localhost:4723/inspector", false);
-            this.add(web)
+            setTimeout(() => {
+                spin.remove()
+            }, 1)
+            setTimeout(() => {
+                this.add(web)
+                web.setUrl("http://localhost:4723/inspector")
+            }, 251)
         })
-
-
-        // setTimeout(() => {
-        //     let web = new WebView("http://localhost:4723/inspector", false);
-        //     this.add(web)
-        // }, 1000)
     }
 }
 
