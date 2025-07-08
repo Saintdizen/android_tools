@@ -17,7 +17,7 @@
     "url": "https://github.com/Saintdizen/android_tools.git"
   },
   "keywords": [
-    "Tools"
+    "Tools", "Android"
   ],
   "build": {
     "asar": false,
