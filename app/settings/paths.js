@@ -4,15 +4,14 @@ class AppPaths {
     static #paths = [
         path.join(App.userDataPath(), "android", 'android-sdk'),
         path.join(App.userDataPath(), "android", 'android-avd'),
-        path.join(App.userDataPath(), "android", 'downloads'),
-        path.join(App.userDataPath(), "node_js"),
-        path.join(App.userDataPath(), "node_js", "bin", "node"),
+        path.join(App.userDataPath(), "android", 'downloads')
     ]
     constructor() {}
     static install() {
         process.env.ANDROID_HOME = this.#paths[0]
         process.env.ANDROID_SDK_ROOT = this.#paths[0]
-        process.env.NODE = this.#paths[4]
+        process.env.NODE = path.join(__dirname, "node_modules", "electron", "dist", "electron")
+        process.env.APPIUM = path.join(__dirname, "node_modules", "appium", "index.js")
         for (let path of this.#paths) if (!fs.existsSync(path)) fs.mkdirSync(path, {recursive: true});
     }
     static ANDROID_SDK = this.#paths[0];

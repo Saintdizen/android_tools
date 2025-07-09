@@ -1,11 +1,10 @@
 const {AppLayout, render, Log, Icons, ContentBlock, Styles, Dialog, ComboBox, Button, os, DownloadProgressNotification,
-    path, fs, Label, ipcRenderer
+    path, fs, Label
 } = require('chuijs');
 const {MainPage} = require("./views/main_page");
 const {Android} = require("./src/src");
 const {AppPaths} = require("./settings/paths");
 const decompress = require("decompress");
-const decompressTarxz = require('@felipecrs/decompress-tarxz');
 const fse = require("fs-extra");
 const DownloadManager = require("@electron/remote").require("electron-download-manager");
 const android = new Android()
@@ -119,9 +118,6 @@ class Apps extends AppLayout {
     install(name_avd, android_device, android_version, android_system_image, android_arch) {
         setTimeout(async () => {
             if (os.platform() === "linux") {
-                await this.downloadNodeJS("https://nodejs.org/dist/v22.17.0/node-v22.17.0-linux-x64.tar.xz")
-                await this.unzip("node-v22.17.0-linux-x64", ".tar.xz", { plugins: [decompressTarxz()] })
-                await this.copyNodeJS("node-v22.17.0-linux-x64")
                 await this.downloadCommandLineTools("https://dl.google.com/android/repository/commandlinetools-linux-13114758_latest.zip")
                 await this.unzip("commandlinetools-linux-13114758_latest", ".zip", undefined)
                 await this.copyCmdlineTools()
@@ -130,25 +126,6 @@ class Apps extends AppLayout {
                 Log.info("WINDOWS")
             }
         }, 2000)
-    }
-    async downloadNodeJS(link) {
-        const notif = new DownloadProgressNotification({title: "Загрузка NodeJS"})
-        return new Promise((resolve, reject) => {
-            notif.show()
-            DownloadManager.download({
-                url: link,
-                onProgress: (progress, item) => {
-                    notif.update("Загрузка", "NodeJS", Number(progress.progress).toFixed(), 100)
-                    Log.info(`NodeJS - ${progress.progress}`)
-                }
-            }, (error, info) => {
-                if (error) { Log.error(error); reject(error); }
-                Log.info(info.toString());
-                notif.update("Загрузка", "Завершена", 100, 100)
-                notif.done()
-                resolve(info)
-            });
-        })
     }
     async downloadCommandLineTools(link) {
         const notif = new DownloadProgressNotification({title: "Загрузка commandlinetools"})
@@ -207,28 +184,6 @@ class Apps extends AppLayout {
                 Log.error(err)
                 reject(err)
             });
-        })
-    }
-    async copyNodeJS(fName) {
-        return new Promise((resolve, reject) => {
-            Log.info("Копирование NODEJS")
-            let node = path.join(AppPaths.NODE_JS_DIR, "bin", "node")
-            if (!fs.existsSync(node)) {
-                let srcDir = path.join(AppPaths.DOWNLOADS_DIR, fName)
-                let destDir = path.join(AppPaths.NODE_JS_DIR)
-                fs.mkdirSync(destDir, {recursive: true});
-                fse.copy(srcDir, destDir, { overwrite: true }).then(() => {
-                    Log.info('Folder copied successfully!')
-                    ipcRenderer.send("START_APPIUM", (node))
-                    resolve(node)
-                }).catch(err => {
-                    Log.error(err)
-                    reject(err)
-                });
-            } else {
-                ipcRenderer.send("START_APPIUM", (node))
-                resolve(node)
-            }
         })
     }
 }

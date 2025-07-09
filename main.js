@@ -48,13 +48,10 @@ App.get().on("quit", () => {
 
 console.log(process.env)
 
-ipcMain.on("START_APPIUM", (event, args) => {
-    process.env.appium = path.join(__dirname, "node_modules", "appium", "index.js")
-    appium_spawn = spawn(`electron`, [`${process.env.appium}`, '--use-plugins=inspector', '--allow-cors']);
+ipcMain.on("START_APPIUM", () => {
+    appium_spawn = spawn(`${process.env.NODE}`, [`${process.env.APPIUM}`, '--use-plugins=inspector', '--allow-cors']);
     appium_spawn.stdout.on('data', (data) => {
-        if (String(data).includes("You can provide the following URLs in your client code to connect to this server")) {
-            DataBases.send("ADD_BROWSER")
-        }
+        if (String(data).includes("You can provide the following URLs in your client code to connect to this server")) DataBases.send("ADD_BROWSER")
         Log.info(`stdout: ${data}`);
     });
     appium_spawn.stderr.on('data', (data) => {
