@@ -46,6 +46,8 @@ App.get().on("quit", () => {
     console.log("CLOOOOOSE")
 })
 
+console.log(process.env)
+
 ipcMain.on("START_APPIUM", (event, args) => {
     process.env.appium = path.join(__dirname, "node_modules", "appium", "index.js")
     appium_spawn = spawn(`${args}`, [`${process.env.appium}`, '--use-plugins=inspector', '--allow-cors']);
