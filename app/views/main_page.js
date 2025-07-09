@@ -1,4 +1,4 @@
-const {Page, WebView, Spinner, ipcRenderer} = require('chuijs');
+const {Page, WebView, Spinner, ipcRenderer, Log} = require('chuijs');
 const json = require("../../package.json")
 
 class MainPage extends Page {
@@ -13,7 +13,13 @@ class MainPage extends Page {
         this.add(...elements)
 
         let spin = new Spinner(Spinner.SIZE.BIG, "auto")
-        let web = new WebView("", false);
+        let web = new WebView("", true);
+        web.addStopLoadEvent(async () => {
+            await web.executeJavaScript(```
+        localStorage.setItem('PREFERRED_THEME', '"dark"')
+        location.reload()
+            ```)
+        })
         this.add(spin)
 
         ipcRenderer.on("ADD_BROWSER", () => {
