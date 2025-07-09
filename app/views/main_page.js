@@ -13,7 +13,7 @@ class MainPage extends Page {
         this.add(...elements)
 
         let spin = new Spinner(Spinner.SIZE.BIG, "auto")
-        let web = new WebView(false);
+        let web = new WebView("", true);
         this.add(spin)
 
         ipcRenderer.on("ADD_BROWSER", () => {

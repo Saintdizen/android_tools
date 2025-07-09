@@ -6,6 +6,11 @@ sudo chown root chrome-sandbox
 sudo chmod 4755 chrome-sandbox
 ```
 
+###
+```shell
+icon-gen -i /2 -o /1 -r
+```
+
 ### Ссылки
 * Linux - https://dl.google.com/android/repository/commandlinetools-linux-13114758_latest.zip
 * Windows - https://dl.google.com/android/repository/commandlinetools-win-13114758_latest.zip

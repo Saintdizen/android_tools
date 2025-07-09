@@ -17,7 +17,7 @@ const main = new Main({
     },
     minHeight: 540,
     minWidth: 960,
-    // icon: `${__dirname}/resources/icons/app/icon.png`,
+    icon: `${__dirname}/resources/icons/app/icon.png`,
     render: `${__dirname}/app/app.js`,
     devTools: false,
     resizable: true,
@@ -47,8 +47,8 @@ App.get().on("quit", () => {
 })
 
 ipcMain.on("START_APPIUM", (event, args) => {
-    let appium = path.join(__dirname, "node_modules", "appium", "index.js")
-    appium_spawn = spawn(`${args}`, [`${appium}`, '--use-plugins=inspector', '--allow-cors']);
+    process.env.appium = path.join(__dirname, "node_modules", "appium", "index.js")
+    appium_spawn = spawn(`${args}`, [`${process.env.appium}`, '--use-plugins=inspector', '--allow-cors']);
     appium_spawn.stdout.on('data', (data) => {
         if (String(data).includes("You can provide the following URLs in your client code to connect to this server")) {
             DataBases.send("ADD_BROWSER")
