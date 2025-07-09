@@ -46,10 +46,11 @@ App.get().on("quit", () => {
     console.log("CLOOOOOSE")
 })
 
-console.log(process.env)
+setTimeout(() => {
+    process.env.ELECTRON = path.join(__dirname, "node_modules", "electron", "dist", "electron")
+    process.env.APPIUM = path.join(__dirname, "node_modules", "appium", "index.js")
+    appium_spawn = spawn(process.env.ELECTRON, [`${process.env.APPIUM}`, '--use-plugins=inspector', '--allow-cors']);
 
-ipcMain.on("START_APPIUM", () => {
-    appium_spawn = spawn(`${process.env.NODE}`, [`${process.env.APPIUM}`, '--use-plugins=inspector', '--allow-cors']);
     appium_spawn.stdout.on('data', (data) => {
         if (String(data).includes("You can provide the following URLs in your client code to connect to this server")) DataBases.send("ADD_BROWSER")
         Log.info(`stdout: ${data}`);
@@ -63,4 +64,4 @@ ipcMain.on("START_APPIUM", () => {
     appium_spawn.on('error', (err) => {
         Log.error('Failed to start child process.', err);
     });
-})
+}, 2000)

@@ -14,13 +14,13 @@ class MainPage extends Page {
 
         let spin = new Spinner(Spinner.SIZE.BIG, "auto")
         let web = new WebView("", true);
-        web.addStartLoadEvent(async () => {
-            await web.executeJavaScript(```
-        localStorage.setItem('PREFERRED_THEME', '"light"')
-        //location.reload()
-        console.log(window.matchMedia)
-            ```)
-        })
+        // web.addFinishLoadEvent(async () => {
+        //     await web.executeJavaScript(```
+        //     localStorage.setItem('PREFERRED_THEME', '"light"')
+        //     //location.reload()
+        //     console.log(window.matchMedia)
+        //         ```)
+        // })
         this.add(spin)
 
         ipcRenderer.on("ADD_BROWSER", () => {
