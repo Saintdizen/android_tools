@@ -6,11 +6,13 @@ class AppPaths {
         path.join(App.userDataPath(), "android", 'android-avd'),
         path.join(App.userDataPath(), "android", 'downloads'),
         path.join(App.userDataPath(), "node_js"),
+        path.join(App.userDataPath(), "node_js", "bin", "node"),
     ]
     constructor() {}
     static install() {
         process.env.ANDROID_HOME = this.#paths[0]
         process.env.ANDROID_SDK_ROOT = this.#paths[0]
+        process.env.NODE = this.#paths[4]
         for (let path of this.#paths) if (!fs.existsSync(path)) fs.mkdirSync(path, {recursive: true});
     }
     static ANDROID_SDK = this.#paths[0];

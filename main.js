@@ -2,7 +2,7 @@ const {Main, MenuItem, Log, path, App, ipcMain} = require('chuijs');
 const json = require("./package.json");
 const DownloadManager = require("electron-download-manager");
 const {AppPaths} = require("./app/settings/paths")
-const {spawn} = require("node:child_process");
+const {spawn, exec} = require("node:child_process");
 const {DataBases} = require("./app/databases/start_db");
 AppPaths.install()
 DownloadManager.register({downloadFolder: AppPaths.DOWNLOADS_DIR});
@@ -50,7 +50,7 @@ console.log(process.env)
 
 ipcMain.on("START_APPIUM", (event, args) => {
     process.env.appium = path.join(__dirname, "node_modules", "appium", "index.js")
-    appium_spawn = spawn(`${args}`, [`${process.env.appium}`, '--use-plugins=inspector', '--allow-cors']);
+    appium_spawn = spawn(`electron`, [`${process.env.appium}`, '--use-plugins=inspector', '--allow-cors']);
     appium_spawn.stdout.on('data', (data) => {
         if (String(data).includes("You can provide the following URLs in your client code to connect to this server")) {
             DataBases.send("ADD_BROWSER")

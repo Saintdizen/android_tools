@@ -14,10 +14,11 @@ class MainPage extends Page {
 
         let spin = new Spinner(Spinner.SIZE.BIG, "auto")
         let web = new WebView("", true);
-        web.addStopLoadEvent(async () => {
+        web.addStartLoadEvent(async () => {
             await web.executeJavaScript(```
-        localStorage.setItem('PREFERRED_THEME', '"dark"')
-        location.reload()
+        localStorage.setItem('PREFERRED_THEME', '"light"')
+        //location.reload()
+        console.log(window.matchMedia)
             ```)
         })
         this.add(spin)
