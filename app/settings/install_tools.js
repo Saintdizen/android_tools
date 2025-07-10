@@ -41,7 +41,7 @@ class InstallTools {
             }
         } else if (process.platform === "win32") {
             Log.info("WINDOWS")
-            if (!fs.existsSync(path.join(AppPaths.JAVA_DIR, "bin", "java"))) {
+            if (!fs.existsSync(path.join(AppPaths.JAVA_DIR, "bin"))) {
                 await this.#download("Java", this.#links.win.java.link)
                 await this.#unzip("Java", this.#links.win.java.fileName, 50)
                 await this.#copyJava("Java", this.#links.win.java.fileName, 100)
@@ -50,8 +50,8 @@ class InstallTools {
                 await this.#download("CommandLine Tools", this.#links.win.commandlinetools.link)
                 await this.#unzip("CommandLine Tools", this.#links.win.commandlinetools.fileName, 50)
                 await this.#copyCmdlineTools("CommandLine Tools", this.#links.win.commandlinetools.fileName, 100)
+                await this.#createInstallScriptWindows(name_avd, device, android_ver, image_type, arch)
             }
-            await  this.#createInstallScriptWindows(name_avd, device, android_ver, image_type, arch)
         }
         await this.#notif.update("Установка компонентов", "Завершена", 100, 100)
         await this.#notif.done()
