@@ -32,7 +32,7 @@ class Android {
         if (process.platform === "linux") {
             spawn('kill', [String(this.#start_process.pid + 1)])
         } else if (process.platform === "win32") {
-            spawn('cmd.exe', ['taskkill', '/F', '/PID', String(this.#start_process.pid + 1)])
+            spawn('taskkill', ['/pid', this.#start_process.pid, '/t'])
         }
     }
 }

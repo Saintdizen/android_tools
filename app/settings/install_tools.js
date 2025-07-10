@@ -34,19 +34,19 @@ class InstallTools {
         await this.#notif.update("Установка компонентов", "Подготовка...", 100, 100)
         if (process.platform === "linux") {
             Log.info("LINUX")
-            if (!fs.existsSync(AppPaths.ANDROID_SDK, "cmdline-tools", "latest")) {
+            if (!fs.existsSync(path.join(AppPaths.ANDROID_SDK, "cmdline-tools", "latest"))) {
                 await this.#download("CommandLine Tools", this.#links.linux.commandlinetools.link)
                 await this.#unzip("CommandLine Tools", this.#links.linux.commandlinetools.fileName, 50)
                 await this.#copyCmdlineTools("CommandLine Tools", this.#links.linux.commandlinetools.fileName, 100)
             }
         } else if (process.platform === "win32") {
             Log.info("WINDOWS")
-            if (!fs.existsSync(AppPaths.JAVA_DIR, "bin", "java")) {
+            if (!fs.existsSync(path.join(AppPaths.JAVA_DIR, "bin", "java"))) {
                 await this.#download("Java", this.#links.win.java.link)
                 await this.#unzip("Java", this.#links.win.java.fileName, 50)
                 await this.#copyJava("Java", this.#links.win.java.fileName, 100)
             }
-            if (!fs.existsSync(AppPaths.ANDROID_SDK, "cmdline-tools", "latest")) {
+            if (!fs.existsSync(path.join(AppPaths.ANDROID_SDK, "cmdline-tools", "latest"))) {
                 await this.#download("CommandLine Tools", this.#links.win.commandlinetools.link)
                 await this.#unzip("CommandLine Tools", this.#links.win.commandlinetools.fileName, 50)
                 await this.#copyCmdlineTools("CommandLine Tools", this.#links.win.commandlinetools.fileName, 100)
@@ -278,12 +278,7 @@ echo "START: Создание эмулятора Android"
             });
 
             installProc.on('error', (err) => {
-                if (new RegExp("Android Virtual Device '.*' already exists").test(String(err))) {
-                    this.#notif.update("Установка зависимостей", "Завершена", 100, 100)
-                } else {
-                    Log.error(`Failed to start child process: ${err}`);
-                }
-                reject(err)
+                Log.error(`Failed to start child process: ${err}`);
             });
         })
     }
