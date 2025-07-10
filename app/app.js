@@ -1,8 +1,10 @@
-const { AppLayout, render, Log, Icons, ContentBlock, Styles, Dialog, ComboBox, Button, os, Label } = require('chuijs');
+const { AppLayout, render, Log, Icons, os, Label } = require('chuijs');
 const { MainPage } = require("./views/main_page");
 const { InstallTools } = require('./settings/install_tools');
+const { Android } = require("./src/src")
 
 class Apps extends AppLayout {
+    #android = new Android()
     constructor() {
         super();
         this.disableAppMenu()
@@ -17,13 +19,13 @@ class Apps extends AppLayout {
             title: "Запуск",
             icon: Icons.AUDIO_VIDEO.PLAY_ARROW,
             reverse: true,
-            clickEvent: () => android.startEmulator("name_default")
+            clickEvent: () => this.#android.startEmulator("name_default")
         })
         let stop_emu = AppLayout.BUTTON({
             title: "Остановка",
             icon: Icons.AUDIO_VIDEO.STOP,
             reverse: true,
-            clickEvent: () => android.stopEmulator()
+            clickEvent: () => this.#android.stopEmulator()
         })
         this.addToHeaderLeft([label_emu.set(), launch_emu, stop_emu])
     }

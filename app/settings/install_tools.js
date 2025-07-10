@@ -132,7 +132,88 @@ class InstallTools {
         })
     }
 
+//         installToolsLinux(name_avd, device, android_ver, image_type, arch) {
+//         // let name_avd = this.#randomString(10)
+//         let install = `echo "START: Подготовка..."
+// export ANDROID_HOME="${AppPaths.ANDROID_SDK}"
+// export ANDROID_SDK_ROOT=$ANDROID_HOME
+// #
+// yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses > /dev/null
+// #
+// echo "START: Установка Android Emulator"
+// yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager emulator
+// #
+// echo "START: Установка Platform Tools"
+// yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager platform-tools
+// echo "START: Загрузка Android"
+// yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "system-images;${android_ver};${image_type};${arch}"
+// echo "START: Создание эмулятора Android"
+// $ANDROID_HOME/cmdline-tools/latest/bin/avdmanager create avd -d "${device}" -n ${name_avd} -k "system-images;${android_ver};${image_type};${arch}"`
+
+//         let path_script = this.#createScript(install, name_avd, `create.sh`);
+
+//         this.#installProcess = spawn('sh', [`${path_script}`]);
+//         const notif = new DownloadProgressNotification({title: "Установка зависимостей", text: "Подготовка..."})
+//         notif.show()
+//         let text = undefined
+//         let process = undefined
+//         let flag_update_notification = false
+
+//         this.#installProcess.stdout.on('data', (data) => {
+//             if (String(data).includes("START:")) {
+//                 flag_update_notification = true
+//                 text = data.toString().replace("START: ", "")
+//             } else {
+//                 flag_update_notification = false
+//             }
+//             let pattern = new RegExp("\\d+")
+//             if (pattern.test(String(data))) {
+//                 flag_update_notification = true
+//                 process = String(data).match(pattern)
+//             } else {
+//                 flag_update_notification = false
+//             }
+//             if (flag_update_notification) notif.update("Установка зависимостей", text, Number(process).toFixed(), 100)
+//             Log.info(`stdout: ${data}`);
+//         });
+
+//         this.#installProcess.stderr.on('data', (data) => {
+//             if (String(data).includes("already exists")) {
+//                 notif.update("Установка зависимостей", "Завершена", 100, 100)
+//                 notif.done()
+//             } else {
+//                 notif.error()
+//                 Log.error(`stderr: ${data}`);
+//             }
+//         });
+
+//         this.#installProcess.on('close', (code) => {
+//             if (code !== 0 && code !== 1) {
+//                 notif.error()
+//             } else {
+//                 notif.done()
+//                 this.createStartScript(name_avd)
+//                 setTimeout(async () => {
+//                     await DataBases.AVD_DB.createAvdTable()
+//                     await DataBases.AVD_DB.addAvdData(device, android_ver, image_type, arch, name_avd)
+//                 }, 1)
+//             }
+//             Log.info(`child process exited with code ${code}`);
+//         });
+
+//         this.#installProcess.on('error', (err) => {
+//             if (new RegExp("Android Virtual Device '.*' already exists").test(String(err))) {
+//                 notif.update("Установка зависимостей", "Завершена", 100, 100)
+//                 notif.done()
+//             } else {
+//                 notif.error()
+//                 Log.error(`Failed to start child process: ${err}`);
+//             }
+//         });
+//     }
+
     async #createInstallScriptWindows(name_avd, device, android_ver, image_type, arch) {
+        this.#notif.update("Установка Android", "Подготовка...", 0, 100)
         return new Promise(async (resolve, reject) => {
         let install = `echo "START: Подготовка..."
 @echo off
@@ -140,9 +221,6 @@ class InstallTools {
 SET JAVA_HOME=${AppPaths.JAVA_DIR}
 SET ANDROID_HOME=${AppPaths.ANDROID_SDK}
 SET ANDROID_SDK_ROOT=%ANDROID_HOME%
-
-echo %JAVA_HOME%
-echo %ANDROID_HOME%
 
 echo y|%ANDROID_SDK_ROOT%\\cmdline-tools\\latest\\bin\\sdkmanager.bat --licenses
 echo "START: Установка Android Emulator"
@@ -165,7 +243,7 @@ echo "START: Создание эмулятора Android"
             installProc.stdout.on('data', (data) => {
                 if (String(data).includes("START:")) {
                     flag_update_notification = true
-                    text = data.toString().replace("START: ", "")
+                    text = data.toString().replace("START: ", "").replaceAll('"', '')
                 } else {
                     flag_update_notification = false
                 }
@@ -176,19 +254,12 @@ echo "START: Создание эмулятора Android"
                 } else {
                     flag_update_notification = false
                 }
-                if (flag_update_notification) this.#notif.update("Установка зависимостей", text, Number(process).toFixed(), 100)
+                if (flag_update_notification) this.#notif.update("Установка Android", text, Number(process).toFixed(), 100)
                 Log.info(`stdout: ${data}`);
             });
 
             installProc.stderr.on('data', (data) => {
                 Log.info(String(data))
-                // if (String(data).includes("already exists")) {
-                //     this.#notif.update("Установка зависимостей", "Завершена", 100, 100)
-                //     this.#notif.done()
-                // } else {
-                //     this.#notif.error()
-                //     Log.error(`stderr: ${data}`);
-                // }
             });
 
             installProc.on('close', (code) => {
@@ -196,7 +267,7 @@ echo "START: Создание эмулятора Android"
                     this.#notif.error()
                 } else {
                     this.#notif.done()
-                    //this.createStartScript(name_avd)
+                    this.createStartScript(name_avd)
                     setTimeout(async () => {
                         await DataBases.AVD_DB.createAvdTable()
                         await DataBases.AVD_DB.addAvdData(device, android_ver, image_type, arch, name_avd)
@@ -209,13 +280,30 @@ echo "START: Создание эмулятора Android"
             installProc.on('error', (err) => {
                 if (new RegExp("Android Virtual Device '.*' already exists").test(String(err))) {
                     this.#notif.update("Установка зависимостей", "Завершена", 100, 100)
-                    this.#notif.done()
                 } else {
                     Log.error(`Failed to start child process: ${err}`);
                 }
                 reject(err)
             });
         })
+    }
+
+    createStartScript(name) {
+        if (process.platform === "linux") {
+            let start_emu = `
+export ANDROID_HOME=${AppPaths.ANDROID_SDK}
+export ANDROID_SDK_ROOT=$ANDROID_HOME
+#
+$ANDROID_HOME/emulator/emulator -avd ${name}`
+            return this.#createScript(start_emu, name, `start.sh`)
+        } else if (process.platform === "win32") {
+            let start_emu = `@echo off
+SET JAVA_HOME=${AppPaths.JAVA_DIR}
+SET ANDROID_HOME=${AppPaths.ANDROID_SDK}
+SET ANDROID_SDK_ROOT=%ANDROID_HOME%
+%ANDROID_SDK_ROOT%\\emulator\\emulator -avd ${name}`
+            return this.#createScript(start_emu, name, `start.bat`)
+        }
     }
 
     async #createScript(text, name_avd, name_script) {
@@ -236,10 +324,6 @@ echo "START: Создание эмулятора Android"
             }
             resolve(path_script)
         })
-    }
-
-    async runInstallWindows() {
-
     }
 }
 
