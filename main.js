@@ -1,4 +1,4 @@
-const {Main, MenuItem, Log, path, App, ipcMain} = require('chuijs');
+const {Main, MenuItem, Log, path, App} = require('chuijs');
 const json = require("./package.json");
 const DownloadManager = require("electron-download-manager");
 const {AppPaths} = require("./app/settings/paths")
@@ -46,22 +46,20 @@ App.get().on("quit", () => {
     console.log("CLOOOOOSE")
 })
 
-setTimeout(() => {
-    process.env.ELECTRON = path.join(__dirname, "node_modules", "electron", "dist", "electron")
-    process.env.APPIUM = path.join(__dirname, "node_modules", "appium", "index.js")
-    appium_spawn = spawn(process.env.ELECTRON, [`${process.env.APPIUM}`, '--use-plugins=inspector', '--allow-cors']);
+process.env.ELECTRON = path.join(__dirname, "node_modules", "electron", "dist", "electron")
+process.env.APPIUM = path.join(__dirname, "node_modules", "appium", "index.js")
+appium_spawn = spawn(process.env.ELECTRON, [`${process.env.APPIUM}`, '--use-plugins=inspector', '--allow-cors']);
 
-    appium_spawn.stdout.on('data', (data) => {
-        if (String(data).includes("You can provide the following URLs in your client code to connect to this server")) DataBases.send("ADD_BROWSER")
-        Log.info(`stdout: ${data}`);
-    });
-    appium_spawn.stderr.on('data', (data) => {
-        Log.error(`stderr: ${data}`);
-    });
-    appium_spawn.on('close', (code) => {
-        Log.info(`child process exited with code ${code}`);
-    });
-    appium_spawn.on('error', (err) => {
-        Log.error('Failed to start child process.', err);
-    });
-}, 2000)
+appium_spawn.stdout.on('data', (data) => {
+    if (String(data).includes("You can provide the following URLs in your client code to connect to this server")) DataBases.send("ADD_BROWSER")
+    Log.info(`stdout: ${data}`);
+});
+appium_spawn.stderr.on('data', (data) => {
+    Log.error(`stderr: ${data}`);
+});
+appium_spawn.on('close', (code) => {
+    Log.info(`child process exited with code ${code}`);
+});
+appium_spawn.on('error', (err) => {
+    Log.error('Failed to start child process.', err);
+});

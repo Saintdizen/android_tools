@@ -13,7 +13,7 @@ class MainPage extends Page {
         this.add(...elements)
 
         let spin = new Spinner(Spinner.SIZE.BIG, "auto")
-        let web = new WebView("", true);
+        let web = new WebView("", false);
         // web.addFinishLoadEvent(async () => {
         //     await web.executeJavaScript(```
         //     localStorage.setItem('PREFERRED_THEME', '"light"')

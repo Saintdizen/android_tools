@@ -92,32 +92,49 @@ $ANDROID_HOME/cmdline-tools/latest/bin/avdmanager create avd -d "${device}" -n $
         this.#installProcess.kill()
     }
     startEmulator(name) {
-        this.#start_process = spawn('sh', [`${path.join(AppPaths.AVD_DIR, name, "start.sh")}`]);
-        this.#start_process.stdout.on('data', (data) => {
-            Log.info(`stdout: ${data}`);
-        });
-        this.#start_process.stderr.on('data', (data) => {
-            Log.error(`stderr: ${data}`);
-        });
-        this.#start_process.on('close', (code) => {
-            Log.info(`close: ${code}`);
-        });
-        this.#start_process.on('error', (err) => {
-            Log.error(`Failed to start child process: ${err}`);
-        });
+        if (process.platform === "linux") {
+            this.#start_process = spawn('sh', [`${path.join(AppPaths.AVD_DIR, name, "start.sh")}`]);
+            this.#start_process.stdout.on('data', (data) => {
+                Log.info(`stdout: ${data}`);
+            });
+            this.#start_process.stderr.on('data', (data) => {
+                Log.error(`stderr: ${data}`);
+            });
+            this.#start_process.on('close', (code) => {
+                Log.info(`close: ${code}`);
+            });
+            this.#start_process.on('error', (err) => {
+                Log.error(`Failed to start child process: ${err}`);
+            });
+        } else if (process.platform === "win32") {
+            Log.info("WINDOWS")
+        }
     }
     stopEmulator() {
         Log.info("KILL EMULATOR!")
-        //spawn('kill', [String(this.#start_process.pid)])
-        spawn('kill', [String(this.#start_process.pid + 1)])
+        if (process.platform === "linux") {
+            spawn('kill', [String(this.#start_process.pid + 1)])
+        } else if (process.platform === "win32") {
+            Log.info("WINDOWS")
+        }
     }
     createStartScript(name) {
-        let start_emu = `
+        if (process.platform === "linux") {
+            let start_emu = `
 export ANDROID_HOME=${AppPaths.ANDROID_SDK}
 export ANDROID_SDK_ROOT=$ANDROID_HOME
 #
 $ANDROID_HOME/emulator/emulator -avd ${name}`
-        return this.#createScript(start_emu, name, `start.sh`)
+            return this.#createScript(start_emu, name, `start.sh`)
+        } else if (process.platform === "win32") {
+            let start_emu = `
+SET ANDROID_HOME=${AppPaths.ANDROID_SDK}
+SET ANDROID_SDK_ROOT="%ANDROID_HOME%"
+
+%ANDROID_SDK_ROOT%\\emulator\\emulator -avd ${name}`
+            return this.#createScript(start_emu, name, `start.sh`)
+        }
+
     }
     #createScript(text, name_avd, name_script) {
         let path_scripts = path.join(AppPaths.AVD_DIR, name_avd)

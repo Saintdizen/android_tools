@@ -8,7 +8,6 @@ const decompress = require("decompress");
 const fse = require("fs-extra");
 const DownloadManager = require("@electron/remote").require("electron-download-manager");
 const android = new Android()
-const { spawn } = require('node:child_process');
 
 class Apps extends AppLayout {
     constructor() {
@@ -123,7 +122,9 @@ class Apps extends AppLayout {
                 await this.copyCmdlineTools()
                 await android.installToolsLinux(name_avd, android_device, android_version, android_system_image, android_arch)
             } else if (os.platform() === "win32") {
-                Log.info("WINDOWS")
+                await this.downloadCommandLineTools("https://dl.google.com/android/repository/commandlinetools-win-13114758_latest.zip")
+                await this.unzip("commandlinetools-win-13114758_latest", ".zip", undefined)
+                await this.copyCmdlineTools()
             }
         }, 2000)
     }
