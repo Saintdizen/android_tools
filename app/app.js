@@ -33,7 +33,7 @@ class Apps extends AppLayout {
         setTimeout(async () => {
             let install_test = new InstallTools()
             if (os.platform() === "linux") {
-                await install_test.start()
+                await install_test.start(name_avd, android_device, android_version, android_system_image, android_arch)
             } else if (os.platform() === "win32") {
                 await install_test.start(name_avd, android_device, android_version, android_system_image, android_arch)
             }
