@@ -55,6 +55,89 @@ $ANDROID_HOME/cmdline-tools/latest/bin/avdmanager create avd -d "${device}" -n $
         });
 
         this.#installProcess.stderr.on('data', (data) => {
+            if (String(data).includes("already exists")) {
+                notif.update("Установка зависимостей", "Завершена", 100, 100)
+                notif.done()
+            } else {
+                notif.error()
+                Log.error(`stderr: ${data}`);
+            }
+        });
+
+        this.#installProcess.on('close', (code) => {
+            if (code !== 0 && code !== 1) {
+                notif.error()
+            } else {
+                notif.done()
+                this.createStartScript(name_avd)
+                setTimeout(async () => {
+                    await DataBases.AVD_DB.createAvdTable()
+                    await DataBases.AVD_DB.addAvdData(device, android_ver, image_type, arch, name_avd)
+                }, 1)
+            }
+            Log.info(`child process exited with code ${code}`);
+        });
+
+        this.#installProcess.on('error', (err) => {
+            if (new RegExp("Android Virtual Device '.*' already exists").test(String(err))) {
+                notif.update("Установка зависимостей", "Завершена", 100, 100)
+                notif.done()
+            } else {
+                notif.error()
+                Log.error(`Failed to start child process: ${err}`);
+            }
+        });
+    }
+    installToolsWindow(name_avd, device, android_ver, image_type, arch) {
+        let install = `echo "START: Подготовка..."
+@echo off
+
+SET JAVA_HOME=C:\Users\DethMond\Downloads\test\jdk-24_windows-x64_bin\jdk-24.0.1
+SET ANDROID_HOME=C:\Users\DethMond\Downloads\test\android-sdk
+SET ANDROID_SDK_ROOT=%ANDROID_HOME%
+
+echo %ANDROID_HOME%
+@REM https://download.oracle.com/java/24/latest/jdk-24_windows-x64_bin.zip
+
+echo y|%ANDROID_SDK_ROOT%\cmdline-tools\latest\bin\sdkmanager.bat --licenses
+
+echo "START: Установка Android Emulator"
+echo y|%ANDROID_SDK_ROOT%\cmdline-tools\latest\bin\sdkmanager emulator
+echo "START: Установка Platform Tools"
+echo y|%ANDROID_SDK_ROOT%\cmdline-tools\latest\bin\sdkmanager platform-tools
+echo "START: Загрузка Android"
+echo y|%ANDROID_SDK_ROOT%\cmdline-tools\latest\bin\sdkmanager "system-images;android-29;default;x86"
+echo "START: Создание эмулятора Android"
+%ANDROID_SDK_ROOT%\cmdline-tools\latest\bin\avdmanager create avd -d "medium_phone" -n test_win_avd -k "system-images;android-29;default;x86"`
+
+        let path_script = this.#createScript(install, name_avd, `create.sh`);
+
+        this.#installProcess = spawn('sh', [`${path_script}`]);
+        const notif = new DownloadProgressNotification({title: "Установка зависимостей", text: "Подготовка..."})
+        notif.show()
+        let text = undefined
+        let process = undefined
+        let flag_update_notification = false
+
+        this.#installProcess.stdout.on('data', (data) => {
+            if (String(data).includes("START:")) {
+                flag_update_notification = true
+                text = data.toString().replace("START: ", "")
+            } else {
+                flag_update_notification = false
+            }
+            let pattern = new RegExp("\\d+")
+            if (pattern.test(String(data))) {
+                flag_update_notification = true
+                process = String(data).match(pattern)
+            } else {
+                flag_update_notification = false
+            }
+            if (flag_update_notification) notif.update("Установка зависимостей", text, Number(process).toFixed(), 100)
+            Log.info(`stdout: ${data}`);
+        });
+
+        this.#installProcess.stderr.on('data', (data) => {
             if (new RegExp(`Android Virtual Device '.*' already exists`).test(String(data))) {
                 notif.update("Установка зависимостей", "Завершена", 100, 100)
                 notif.done()
@@ -94,21 +177,21 @@ $ANDROID_HOME/cmdline-tools/latest/bin/avdmanager create avd -d "${device}" -n $
     startEmulator(name) {
         if (process.platform === "linux") {
             this.#start_process = spawn('sh', [`${path.join(AppPaths.AVD_DIR, name, "start.sh")}`]);
-            this.#start_process.stdout.on('data', (data) => {
-                Log.info(`stdout: ${data}`);
-            });
-            this.#start_process.stderr.on('data', (data) => {
-                Log.error(`stderr: ${data}`);
-            });
-            this.#start_process.on('close', (code) => {
-                Log.info(`close: ${code}`);
-            });
-            this.#start_process.on('error', (err) => {
-                Log.error(`Failed to start child process: ${err}`);
-            });
         } else if (process.platform === "win32") {
             Log.info("WINDOWS")
         }
+        this.#start_process.stdout.on('data', (data) => {
+            Log.info(`stdout: ${data}`);
+        });
+        this.#start_process.stderr.on('data', (data) => {
+            Log.error(`stderr: ${data}`);
+        });
+        this.#start_process.on('close', (code) => {
+            Log.info(`close: ${code}`);
+        });
+        this.#start_process.on('error', (err) => {
+            Log.error(`Failed to start child process: ${err}`);
+        });
     }
     stopEmulator() {
         Log.info("KILL EMULATOR!")
@@ -152,10 +235,6 @@ SET ANDROID_SDK_ROOT="%ANDROID_HOME%"
             Log.info(`Файл '${path_script}' уже существует`)
         }
         return path_script
-    }
-    #randomString(length) {
-      if (length % 2 !== 0) length++
-      return randomBytes(length / 2).toString("hex");
     }
 }
 

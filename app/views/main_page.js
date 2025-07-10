@@ -1,8 +1,8 @@
-const {Page, WebView, Spinner, ipcRenderer, Log} = require('chuijs');
+const {Page, WebView, Spinner, ipcRenderer} = require('chuijs');
 const json = require("../../package.json")
 
 class MainPage extends Page {
-    constructor(elements) {
+    constructor() {
         super();
         this.setTitle(`${json.productName}`);
         this.setFullHeight();
@@ -10,17 +10,9 @@ class MainPage extends Page {
         this.setFullHeight()
         this.setFullWidth()
         this.disablePadding()
-        this.add(...elements)
 
         let spin = new Spinner(Spinner.SIZE.BIG, "auto")
         let web = new WebView("", false);
-        // web.addFinishLoadEvent(async () => {
-        //     await web.executeJavaScript(```
-        //     localStorage.setItem('PREFERRED_THEME', '"light"')
-        //     //location.reload()
-        //     console.log(window.matchMedia)
-        //         ```)
-        // })
         this.add(spin)
 
         ipcRenderer.on("ADD_BROWSER", () => {
