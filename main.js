@@ -48,7 +48,8 @@ App.get().on("quit", () => {
 
 process.env.ELECTRON = path.join(__dirname, "node_modules", "electron", "dist", "electron")
 process.env.APPIUM = path.join(__dirname, "node_modules", "appium", "index.js")
-appium_spawn = spawn(process.env.ELECTRON, [`${process.env.APPIUM}`, '--use-plugins=inspector', '--allow-cors']);
+
+appium_spawn = spawn("node", [`${process.env.APPIUM}`, '--use-plugins=inspector', '--allow-cors']);
 
 appium_spawn.stdout.on('data', (data) => {
     if (String(data).includes("You can provide the following URLs in your client code to connect to this server")) DataBases.send("ADD_BROWSER")
