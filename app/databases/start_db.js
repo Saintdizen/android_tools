@@ -1,6 +1,5 @@
 const {AvdDB} = require("./sqlite");
 const {App} = require("chuijs");
-const {AppPaths} = require("../settings/paths");
 
 class DataBases {
     constructor() {}

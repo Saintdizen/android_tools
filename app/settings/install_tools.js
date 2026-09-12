@@ -33,27 +33,40 @@ class InstallTools {
 
     async start(name_avd, device, android_ver, image_type, arch) {
         await this.#notif.update("Установка компонентов", "Подготовка...", 100, 100)
-        if (process.platform === "linux") {
-            Log.info("LINUX")
-            if (!fs.existsSync(path.join(AppPaths.ANDROID_SDK, "cmdline-tools", "latest"))) {
-                await this.#download("CommandLine Tools", this.#links.linux.commandlinetools.link)
-                await this.#unzip("CommandLine Tools", this.#links.linux.commandlinetools.fileName, 50)
-                await this.#copyCmdlineTools("CommandLine Tools", this.#links.linux.commandlinetools.fileName, 100)
-                await this.#createInstallScriptLinux(name_avd, device, android_ver, image_type, arch)
+        try {
+            if (process.platform === "linux") {
+                Log.info("LINUX")
+                if (!this.#isCmdlineToolsInstalled()) {
+                    await this.#download("CommandLine Tools", this.#links.linux.commandlinetools.link)
+                    await this.#unzip("CommandLine Tools", this.#links.linux.commandlinetools.fileName, 50)
+                    await this.#copyCmdlineTools("CommandLine Tools", this.#links.linux.commandlinetools.fileName, 100)
+                }
+                if (!this.#isAvdInstalled(name_avd)) {
+                    await this.#createInstallScriptLinux(name_avd, device, android_ver, image_type, arch)
+                }
+            } else if (process.platform === "win32") {
+                Log.info("WINDOWS")
+                if (!fs.existsSync(path.join(AppPaths.JAVA_DIR, "bin"))) {
+                    await this.#download("Java", this.#links.win.java.link)
+                    await this.#unzip("Java", this.#links.win.java.fileName, 50)
+                    await this.#copyJava("Java", this.#links.win.java.fileName, 100)
+                }
+                if (!this.#isCmdlineToolsInstalled()) {
+                    await this.#download("CommandLine Tools", this.#links.win.commandlinetools.link)
+                    await this.#unzip("CommandLine Tools", this.#links.win.commandlinetools.fileName, 50)
+                    await this.#copyCmdlineTools("CommandLine Tools", this.#links.win.commandlinetools.fileName, 100)
+                }
+                if (!this.#isAvdInstalled(name_avd)) {
+                    await this.#createInstallScriptWindows(name_avd, device, android_ver, image_type, arch)
+                }
+            } else {
+                Log.error(`Установка компонентов не поддерживается на платформе: ${process.platform}`)
+                this.#notif.error()
+                return
             }
-        } else if (process.platform === "win32") {
-            Log.info("WINDOWS")
-            if (!fs.existsSync(path.join(AppPaths.JAVA_DIR, "bin"))) {
-                await this.#download("Java", this.#links.win.java.link)
-                await this.#unzip("Java", this.#links.win.java.fileName, 50)
-                await this.#copyJava("Java", this.#links.win.java.fileName, 100)
-            }
-            if (!fs.existsSync(path.join(AppPaths.ANDROID_SDK, "cmdline-tools", "latest"))) {
-                await this.#download("CommandLine Tools", this.#links.win.commandlinetools.link)
-                await this.#unzip("CommandLine Tools", this.#links.win.commandlinetools.fileName, 50)
-                await this.#copyCmdlineTools("CommandLine Tools", this.#links.win.commandlinetools.fileName, 100)
-                await this.#createInstallScriptWindows(name_avd, device, android_ver, image_type, arch)
-            }
+        } catch (error) {
+            Log.error(`Установка компонентов прервана: ${error}`)
+            return
         }
         await this.#notif.update("Установка компонентов", "Завершена", 100, 100)
         await this.#notif.done()
@@ -70,7 +83,11 @@ class InstallTools {
                     Log.info(`${filename} ${progress.progress}`)
                 }
             }, (error, info) => {
-                if (error) { Log.error(error); reject(error); this.#notif.error(); }
+                if (error) {
+                    Log.error(error)
+                    this.#notif.error()
+                    return reject(error)
+                }
                 Log.info(`Загрузка ${who_name} завершена`);
                 this.#notif.update(`Загрузка ${who_name}`, "Завершена", 100, 100)
                 resolve(info)
@@ -129,9 +146,30 @@ class InstallTools {
                 resolve('Folder copied successfully!')
             }).catch(err => {
                 Log.error(err)
+                this.#notif.error()
                 reject(err)
             });
         })
+    }
+
+    #isCmdlineToolsInstalled() {
+        return fs.existsSync(path.join(AppPaths.ANDROID_SDK, "cmdline-tools", "latest"))
+    }
+
+    #isAvdInstalled(name_avd) {
+        let script = process.platform === "win32" ? "start.bat" : "start.sh"
+        return fs.existsSync(path.join(AppPaths.AVD_DIR, name_avd, script))
+    }
+
+    #saveAvd(name_avd, device, android_ver, image_type, arch) {
+        setTimeout(async () => {
+            try {
+                await DataBases.AVD_DB.createAvdTable()
+                await DataBases.AVD_DB.addAvdData(device, android_ver, image_type, arch, name_avd)
+            } catch (error) {
+                Log.error(`Не удалось сохранить AVD '${name_avd}' в базу: ${error}`)
+            }
+        }, 1)
     }
 
     #createInstallScriptLinux(name_avd, device, android_ver, image_type, arch) {
@@ -182,22 +220,20 @@ class InstallTools {
             });
 
             installProc.on('close', (code) => {
+                Log.info(`child process exited with code ${code}`);
                 if (code !== 0 && code !== 1) {
                     this.#notif.error()
-                } else {
-                    this.#notif.done()
-                    this.createStartScript(name_avd)
-                    setTimeout(async () => {
-                        await DataBases.AVD_DB.createAvdTable()
-                        await DataBases.AVD_DB.addAvdData(device, android_ver, image_type, arch, name_avd)
-                    }, 1)
+                    return reject(`child process exited with code ${code}`)
                 }
-                Log.info(`child process exited with code ${code}`);
+                this.createStartScript(name_avd)
+                this.#saveAvd(name_avd, device, android_ver, image_type, arch)
                 resolve(`child process exited with code ${code}`)
             });
 
             installProc.on('error', (err) => {
                 Log.error(`Failed to start child process: ${err}`);
+                this.#notif.error()
+                reject(`Failed to start child process: ${err}`)
             });
         })
     }
@@ -253,22 +289,20 @@ echo "START: Создание эмулятора Android"
             });
 
             installProc.on('close', (code) => {
+                Log.info(`child process exited with code ${code}`);
                 if (code !== 0 && code !== 1) {
                     this.#notif.error()
-                } else {
-                    this.#notif.done()
-                    this.createStartScript(name_avd)
-                    setTimeout(async () => {
-                        await DataBases.AVD_DB.createAvdTable()
-                        await DataBases.AVD_DB.addAvdData(device, android_ver, image_type, arch, name_avd)
-                    }, 1)
+                    return reject(`child process exited with code ${code}`)
                 }
-                Log.info(`child process exited with code ${code}`);
+                this.createStartScript(name_avd)
+                this.#saveAvd(name_avd, device, android_ver, image_type, arch)
                 resolve(`child process exited with code ${code}`)
             });
 
             installProc.on('error', (err) => {
                 Log.error(`Failed to start child process: ${err}`);
+                this.#notif.error()
+                reject(`Failed to start child process: ${err}`)
             });
         })
     }

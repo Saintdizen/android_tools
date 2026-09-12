@@ -24,10 +24,10 @@ class AvdDB {
     }
     addAvdData(device, android_ver, image_type, arch, avd_name) {
         return new Promise((resolve, reject) => {
-            this.#avd_db.run(`INSERT INTO avds (device, android_ver, image_type, arch, avd_name) VALUES (?, ?, ?, ?, ?)`,
+            this.#avd_db.run(`INSERT OR REPLACE INTO avds (device, android_ver, image_type, arch, avd_name) VALUES (?, ?, ?, ?, ?)`,
                 [device, android_ver, image_type, arch, avd_name],
                 (error) => {
-                    if (error) reject(error.message);
+                    if (error) return reject(error.message);
                     resolve("ok")
                 }
             );
@@ -35,9 +35,9 @@ class AvdDB {
     }
     selectAvdData() {
         return new Promise((resolve, reject) => {
-            this.#avd_db.each(`SELECT * FROM avds;`, (error, row) => {
-                if (error) reject(error);
-                resolve(row)
+            this.#avd_db.all(`SELECT * FROM avds;`, (error, rows) => {
+                if (error) return reject(error);
+                resolve(rows)
             });
         })
     }

@@ -13,21 +13,19 @@ class Apps extends AppLayout {
 
         this.install("name_default", "medium_phone", "android-29", "default", "x86")
 
-        let label_emu = new Label({text: "Эмулятор:"})
-
         let launch_emu = AppLayout.BUTTON({
-            title: "Запуск",
+            // title: "Запуск",
             icon: Icons.AUDIO_VIDEO.PLAY_ARROW,
             reverse: true,
             clickEvent: () => this.#android.startEmulator("name_default")
         })
         let stop_emu = AppLayout.BUTTON({
-            title: "Остановка",
+            // title: "Остановка",
             icon: Icons.AUDIO_VIDEO.STOP,
             reverse: true,
             clickEvent: () => this.#android.stopEmulator()
         })
-        this.addToHeaderLeft([label_emu.set(), launch_emu, stop_emu])
+        this.addToHeaderLeft([launch_emu, stop_emu])
     }
     install(name_avd, android_device, android_version, android_system_image, android_arch) {
         setTimeout(async () => {
