@@ -29,7 +29,8 @@ class AvdDB {
             this.#avd_db.run(`INSERT OR REPLACE INTO avds (device, android_ver, image_type, arch, avd_name) VALUES (?, ?, ?, ?, ?)`,
                 [device, android_ver, image_type, arch, avd_name],
                 (error) => {
-                    if (error) return reject(error.message);
+                    // Причина отказа — Error: вызывающий код везде читает error.message.
+                    if (error) return reject(new Error(error.message));
                     resolve("ok")
                 }
             );
@@ -46,7 +47,7 @@ class AvdDB {
     deleteAvdData(avd_name) {
         return new Promise((resolve, reject) => {
             this.#avd_db.run(`DELETE FROM avds WHERE avd_name = ?`, [avd_name], (error) => {
-                if (error) return reject(error.message);
+                if (error) return reject(new Error(error.message));
                 resolve()
             });
         })

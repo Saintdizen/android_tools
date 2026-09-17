@@ -70,8 +70,30 @@ function parseProgressChunk(chunk) {
     }
 }
 
+/** Пути AVD внутри каталога приложения: конфигурация, данные и скрипты. */
+function avdPaths(nameAvd) {
+    return {
+        // avdmanager с ANDROID_AVD_HOME создаёт пару <AVD_DIR>/<имя>.ini и <AVD_DIR>/<имя>.avd
+        ini: path.join(AppPaths.AVD_DIR, `${nameAvd}.ini`),
+        data: path.join(AppPaths.AVD_DIR, `${nameAvd}.avd`),
+        scripts: path.join(AppPaths.AVD_DIR, nameAvd)
+    }
+}
+
 function avdIniPath(nameAvd) {
-    return path.join(AppPaths.AVD_DIR, `${nameAvd}.ini`)
+    return avdPaths(nameAvd).ini
+}
+
+/** Удаляет всё, что приложение создало для AVD; возвращает список удалённых путей. */
+function removeAvdFiles(nameAvd) {
+    const paths = avdPaths(nameAvd)
+    const removed = []
+    for (const target of [paths.ini, paths.data, paths.scripts]) {
+        if (!fs.existsSync(target)) continue
+        fs.rmSync(target, {recursive: true, force: true})
+        removed.push(target)
+    }
+    return removed
 }
 
 function avdScriptPath(nameAvd, scriptName) {
@@ -189,6 +211,7 @@ exports.stageLabelOf = stageLabelOf
 exports.parseProgressChunk = parseProgressChunk
 exports.avdIniPath = avdIniPath
 exports.avdScriptPath = avdScriptPath
+exports.removeAvdFiles = removeAvdFiles
 exports.listAvdNames = listAvdNames
 exports.scriptEnvironment = scriptEnvironment
 exports.writeScript = writeScript

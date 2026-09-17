@@ -12,9 +12,13 @@ class InstallTools {
     #failed = false
     #links = {
         win: {
+            // JDK 21 (LTS): Oracle убирает каталоги снятых с поддержки версий,
+            // ссылка на java/24/latest уже отдаёт 404. Имя файла обязано совпадать
+            // с последним сегментом ссылки: файл ищется в DOWNLOADS_DIR по fileName,
+            // а #copyJava выбирает распакованный каталог по префиксу "jdk-".
             java: {
-                fileName: "jdk-24_windows-x64_bin.zip",
-                link: "https://download.oracle.com/java/24/latest/jdk-24_windows-x64_bin.zip"
+                fileName: "jdk-21_windows-x64_bin.zip",
+                link: "https://download.oracle.com/java/21/latest/jdk-21_windows-x64_bin.zip"
             },
             commandlinetools: {
                 fileName: "commandlinetools-win-13114758_latest.zip",
@@ -33,6 +37,11 @@ class InstallTools {
         this.#notif.update("Установка компонентов", "Подготовка...", 0, 100)
     }
 
+    /**
+     * Устанавливает cmdline-tools, JDK (Windows) и создаёт AVD.
+     * Завершается успешно только при полной установке: при любой неудаче бросает
+     * исключение, чтобы интерфейс не показывал успех после провала.
+     */
     async start(name_avd, device, android_ver, image_type, arch) {
         await this.#notif.update("Установка компонентов", "Подготовка...", 0, 100)
         try {
@@ -70,19 +79,19 @@ class InstallTools {
                         "install.bat", name_avd, device, android_ver, image_type, arch)
                 }
             } else {
-                Log.error(`Установка компонентов не поддерживается на платформе: ${process.platform}`)
-                this.#notif.error()
-                return
+                throw new Error(`Установка компонентов не поддерживается на платформе: ${process.platform}`)
             }
         } catch (error) {
             this.#fail(`Установка компонентов прервана: ${error.message ?? error}`)
-            return
+            // Ошибку не глотаем: вызывающий код (диалог установки) обязан показать реальный итог.
+            throw error instanceof Error ? error : new Error(String(error))
         }
         await this.#notif.update("Установка компонентов", "Завершена", 100, 100)
         await this.#notif.done()
     }
 
-    async #download(who_name, link) {
+    /** Загрузка через колбэк-API DownloadManager: нужен именно промис, async не требуется. */
+    #download(who_name, link) {
         let filename = path.basename(new URL(link).pathname);
         this.#notif.update(`Загрузка ${who_name}`, filename, 0, 100)
         return new Promise((resolve, reject) => {
@@ -96,8 +105,8 @@ class InstallTools {
                 }
             }, (error, info) => {
                 if (error) {
+                    // Об ошибке сообщает только #fail в start(): иначе уведомление показывалось бы дважды.
                     Log.error(error)
-                    this.#notif.error()
                     return reject(error)
                 }
                 Log.info(`Загрузка ${who_name} завершена`);
@@ -107,64 +116,53 @@ class InstallTools {
         })
     }
 
+    /** Распаковка архива в DOWNLOADS_DIR; возвращает список распакованных файлов. */
     async #unzip(who_name, fileName, progress) {
         this.#notif.update(`Установка ${who_name}`, fileName, 0, 100)
-        return new Promise((resolve, reject) => {
-            let path_file = path.join(AppPaths.DOWNLOADS_DIR, fileName)
-            let dist_path = AppPaths.DOWNLOADS_DIR
-            decompress(path_file, dist_path).then((files) => {
-                Log.info(files)
-                this.#notif.update(`Установка ${who_name}`, fileName, progress, 100)
-                resolve(files)
-            }).catch((error) => {
-                this.#notif.error()
-                Log.error(`UNZIP ERROR: ${error}`)
-                reject(`UNZIP ERROR: ${error}`)
-            });
-        })
+        const path_file = path.join(AppPaths.DOWNLOADS_DIR, fileName)
+        const files = await decompress(path_file, AppPaths.DOWNLOADS_DIR)
+        Log.info(files)
+        this.#notif.update(`Установка ${who_name}`, fileName, progress, 100)
+        return files
     }
 
     async #copyJava(who_name, fileName, progress) {
-        return new Promise((resolve, reject) => {
-            let jdkDir = fs.readdirSync(AppPaths.DOWNLOADS_DIR)
-                .find(d => d.startsWith('jdk-'))
-            if (!jdkDir) return reject('JDK directory not found after unzip')
-            let srcDir = path.join(AppPaths.DOWNLOADS_DIR, jdkDir)
-            let destDir = path.join(AppPaths.MAIN_FOLDER_ANDROID, "java")
-            if (!fs.existsSync(destDir)) fs.mkdirSync(destDir, {recursive: true});
-            fse.copy(srcDir, destDir, { overwrite: true }).then(() => {
-                this.#notif.update(`Установка ${who_name}`, fileName, progress, 100)
-                Log.info('Folder copied successfully!')
-                resolve('Folder copied successfully!')
-            }).catch(err => {
-                this.#notif.error()
-                Log.error(err)
-                reject(err)
-            });
-        })
+        // Ищем именно каталог: скачанный архив тоже начинается с "jdk-",
+        // а его выбор зависит от порядка readdirSync и приводит к EISDIR.
+        const jdkDir = fs.readdirSync(AppPaths.DOWNLOADS_DIR, {withFileTypes: true})
+            .find(entry => entry.isDirectory() && entry.name.startsWith('jdk-'))
+        if (!jdkDir) {
+            throw new Error(`Каталог JDK не найден после распаковки в ${AppPaths.DOWNLOADS_DIR}`)
+        }
+        const srcDir = path.join(AppPaths.DOWNLOADS_DIR, jdkDir.name)
+        const destDir = path.join(AppPaths.MAIN_FOLDER_ANDROID, "java")
+        if (!fs.existsSync(destDir)) fs.mkdirSync(destDir, {recursive: true});
+        await fse.copy(srcDir, destDir, { overwrite: true })
+        Log.info('Folder copied successfully!')
+        this.#notif.update(`Установка ${who_name}`, fileName, progress, 100)
+        return 'Folder copied successfully!'
     }
 
     async #copyCmdlineTools(who_name, fileName, progress) {
-        return new Promise((resolve, reject) => {
-            let srcDir = path.join(AppPaths.DOWNLOADS_DIR, "cmdline-tools")
-            let destDir = path.join(AppPaths.ANDROID_SDK, "cmdline-tools", "cmdline-tools")
-            if (!fs.existsSync(destDir)) fs.mkdirSync(destDir, {recursive: true});
-            fse.copy(srcDir, destDir, { overwrite: true }).then(() => {
-                let cmdOld = path.join(AppPaths.ANDROID_SDK, "cmdline-tools", "cmdline-tools")
-                let cmdNew = path.join(AppPaths.ANDROID_SDK, "cmdline-tools", "latest")
-                fs.rename(cmdOld, cmdNew, (err) => {
-                    if (err) { Log.error(err); return; }
-                    Log.info('Folder renamed successfully!')
-                });
-                Log.info('Folder copied successfully!')
-                this.#notif.update(`Установка ${who_name}`, fileName, progress, 100)
-                resolve('Folder copied successfully!')
-            }).catch(err => {
-                Log.error(err)
-                this.#notif.error()
-                reject(err)
-            });
-        })
+        const srcDir = path.join(AppPaths.DOWNLOADS_DIR, "cmdline-tools")
+        const cmdOld = path.join(AppPaths.ANDROID_SDK, "cmdline-tools", "cmdline-tools")
+        const cmdNew = path.join(AppPaths.ANDROID_SDK, "cmdline-tools", "latest")
+        if (!fs.existsSync(srcDir)) {
+            throw new Error(`Каталог cmdline-tools не найден после распаковки: ${srcDir}`)
+        }
+        try {
+            await fse.copy(srcDir, cmdOld, { overwrite: true })
+            // sdkmanager и avdmanager запускаются из cmdline-tools/latest, поэтому
+            // переименование — часть установки: дожидаемся его окончания до возврата,
+            // иначе следующий шаг ищет sdkmanager по пути, которого ещё нет.
+            await fs.promises.rename(cmdOld, cmdNew)
+        } catch (error) {
+            Log.error(error)
+            throw new Error(`Не удалось установить cmdline-tools в ${cmdNew}: ${error.message ?? error}`)
+        }
+        Log.info('Folder copied successfully!')
+        this.#notif.update(`Установка ${who_name}`, fileName, progress, 100)
+        return 'Folder copied successfully!'
     }
 
     #isCmdlineToolsInstalled() {
