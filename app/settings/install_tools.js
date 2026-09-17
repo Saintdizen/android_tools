@@ -114,7 +114,10 @@ class InstallTools {
 
     async #copyJava(who_name, fileName, progress) {
         return new Promise((resolve, reject) => {
-            let srcDir = path.join(AppPaths.DOWNLOADS_DIR, "jdk-24.0.1")
+            let jdkDir = fs.readdirSync(AppPaths.DOWNLOADS_DIR)
+                .find(d => d.startsWith('jdk-'))
+            if (!jdkDir) return reject('JDK directory not found after unzip')
+            let srcDir = path.join(AppPaths.DOWNLOADS_DIR, jdkDir)
             let destDir = path.join(AppPaths.MAIN_FOLDER_ANDROID, "java")
             if (!fs.existsSync(destDir)) fs.mkdirSync(destDir, {recursive: true});
             fse.copy(srcDir, destDir, { overwrite: true }).then(() => {
@@ -157,19 +160,13 @@ class InstallTools {
     }
 
     #isAvdInstalled(name_avd) {
-        let script = process.platform === "win32" ? "start.bat" : "start.sh"
-        return fs.existsSync(path.join(AppPaths.AVD_DIR, name_avd, script))
+        let avdConfig = path.join(AppPaths.AVD_DIR, name_avd, `${name_avd}.ini`)
+        return fs.existsSync(avdConfig)
     }
 
-    #saveAvd(name_avd, device, android_ver, image_type, arch) {
-        setTimeout(async () => {
-            try {
-                await DataBases.AVD_DB.createAvdTable()
-                await DataBases.AVD_DB.addAvdData(device, android_ver, image_type, arch, name_avd)
-            } catch (error) {
-                Log.error(`Не удалось сохранить AVD '${name_avd}' в базу: ${error}`)
-            }
-        }, 1)
+    async #saveAvd(name_avd, device, android_ver, image_type, arch) {
+        await DataBases.AVD_DB.createAvdTable()
+        await DataBases.AVD_DB.addAvdData(device, android_ver, image_type, arch, name_avd)
     }
 
     #createInstallScriptLinux(name_avd, device, android_ver, image_type, arch) {
@@ -221,7 +218,7 @@ class InstallTools {
 
             installProc.on('close', (code) => {
                 Log.info(`child process exited with code ${code}`);
-                if (code !== 0 && code !== 1) {
+                if (code !== 0) {
                     this.#notif.error()
                     return reject(`child process exited with code ${code}`)
                 }
@@ -290,7 +287,7 @@ echo "START: Создание эмулятора Android"
 
             installProc.on('close', (code) => {
                 Log.info(`child process exited with code ${code}`);
-                if (code !== 0 && code !== 1) {
+                if (code !== 0) {
                     this.#notif.error()
                     return reject(`child process exited with code ${code}`)
                 }
@@ -314,7 +311,9 @@ export ANDROID_HOME=${AppPaths.ANDROID_SDK}
 export ANDROID_SDK_ROOT=$ANDROID_HOME
 #
 $ANDROID_HOME/emulator/emulator -avd ${name}`
-            return this.#createScript(start_emu, name, `start.sh`)
+            let scriptPath = this.#createScript(start_emu, name, `start.sh`)
+            fs.chmodSync(scriptPath, 0o755)
+            return scriptPath
         } else if (process.platform === "win32") {
             let start_emu = `@echo off
 SET JAVA_HOME=${AppPaths.JAVA_DIR}

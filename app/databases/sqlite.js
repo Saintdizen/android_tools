@@ -7,13 +7,9 @@ class AvdDB {
     #avd_db = null
     constructor() {
         const filepath = path.join(AppPaths.AVD_DIR, "AvdDB.db");
-        if (fs.existsSync(filepath)) {
-            this.#avd_db = new sqlite3.Database(filepath);
-        } else {
-            this.#avd_db = new sqlite3.Database(filepath, (error) => {
-                if (error) Log.error(error.message);
-            });
-        }
+        this.#avd_db = new sqlite3.Database(filepath, (error) => {
+            if (error) Log.error(error.message);
+        });
     }
     createAvdTable() {
         return new Promise((resolve) => {
@@ -41,11 +37,13 @@ class AvdDB {
             });
         })
     }
-    async deleteAvdData(avd_name) {
-        this.#avd_db.run(`DELETE FROM avds WHERE avd_name = ?`, [avd_name],
-            (error) => {
-            if (error) Log.error(error.message);
-        });
+    deleteAvdData(avd_name) {
+        return new Promise((resolve, reject) => {
+            this.#avd_db.run(`DELETE FROM avds WHERE avd_name = ?`, [avd_name], (error) => {
+                if (error) return reject(error.message);
+                resolve()
+            });
+        })
     }
 }
 

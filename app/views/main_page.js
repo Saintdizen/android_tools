@@ -7,7 +7,6 @@ class MainPage extends Page {
         this.setTitle(`${json.productName}`);
         this.setFullHeight();
         this.setMain(true);
-        this.setFullHeight()
         this.setFullWidth()
         this.disablePadding()
 

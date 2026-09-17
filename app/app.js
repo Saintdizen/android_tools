@@ -11,8 +11,6 @@ class Apps extends AppLayout {
         //
         this.setRoute(new MainPage())
 
-        this.install("name_default", "medium_phone", "android-29", "default", "x86")
-
         let launch_emu = AppLayout.BUTTON({
             // title: "Запуск",
             icon: Icons.AUDIO_VIDEO.PLAY_ARROW,
