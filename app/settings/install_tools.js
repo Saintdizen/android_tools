@@ -1,5 +1,6 @@
 const {Log, DownloadProgressNotification, path, fs} = require('chuijs');
 const {AppPaths} = require("./paths");
+const Scripts = require("./scripts");
 const decompress = require("decompress");
 const fse = require("fs-extra");
 const DownloadManager = require("@electron/remote").require("electron-download-manager");
@@ -8,6 +9,7 @@ const {DataBases} = require("../databases/start_db");
 
 class InstallTools {
     #notif = new DownloadProgressNotification({title: "", text: ""})
+    #failed = false
     #links = {
         win: {
             java: {
@@ -32,8 +34,12 @@ class InstallTools {
     }
 
     async start(name_avd, device, android_ver, image_type, arch) {
-        await this.#notif.update("Установка компонентов", "Подготовка...", 100, 100)
+        await this.#notif.update("Установка компонентов", "Подготовка...", 0, 100)
         try {
+            // Значения подставляются в текст скриптов: проверяем их до запуска.
+            const invalid = Scripts.validateInstallParams(name_avd, device, android_ver, image_type, arch)
+            if (invalid) throw new Error(invalid)
+
             if (process.platform === "linux") {
                 Log.info("LINUX")
                 if (!this.#isCmdlineToolsInstalled()) {
@@ -42,7 +48,9 @@ class InstallTools {
                     await this.#copyCmdlineTools("CommandLine Tools", this.#links.linux.commandlinetools.fileName, 100)
                 }
                 if (!this.#isAvdInstalled(name_avd)) {
-                    await this.#createInstallScriptLinux(name_avd, device, android_ver, image_type, arch)
+                    await this.#installAvd(
+                        Scripts.linuxInstallScript(name_avd, device, android_ver, image_type, arch),
+                        "install.sh", name_avd, device, android_ver, image_type, arch)
                 }
             } else if (process.platform === "win32") {
                 Log.info("WINDOWS")
@@ -57,7 +65,9 @@ class InstallTools {
                     await this.#copyCmdlineTools("CommandLine Tools", this.#links.win.commandlinetools.fileName, 100)
                 }
                 if (!this.#isAvdInstalled(name_avd)) {
-                    await this.#createInstallScriptWindows(name_avd, device, android_ver, image_type, arch)
+                    await this.#installAvd(
+                        Scripts.windowsInstallScript(name_avd, device, android_ver, image_type, arch),
+                        "install.bat", name_avd, device, android_ver, image_type, arch)
                 }
             } else {
                 Log.error(`Установка компонентов не поддерживается на платформе: ${process.platform}`)
@@ -65,7 +75,7 @@ class InstallTools {
                 return
             }
         } catch (error) {
-            Log.error(`Установка компонентов прервана: ${error}`)
+            this.#fail(`Установка компонентов прервана: ${error.message ?? error}`)
             return
         }
         await this.#notif.update("Установка компонентов", "Завершена", 100, 100)
@@ -79,7 +89,9 @@ class InstallTools {
             DownloadManager.download({
                 url: link,
                 onProgress: (progress) => {
-                    this.#notif.update(`Загрузка ${who_name}`, filename, Number(progress.progress).toFixed(), 100)
+                    // При неизвестном размере файла прогресс приходит как NaN
+                    const percent = Number(progress.progress)
+                    this.#notif.update(`Загрузка ${who_name}`, filename, Number.isFinite(percent) ? Math.round(percent) : 0, 100)
                     Log.info(`${filename} ${progress.progress}`)
                 }
             }, (error, info) => {
@@ -160,8 +172,8 @@ class InstallTools {
     }
 
     #isAvdInstalled(name_avd) {
-        let avdConfig = path.join(AppPaths.AVD_DIR, name_avd, `${name_avd}.ini`)
-        return fs.existsSync(avdConfig)
+        // avdmanager с ANDROID_AVD_HOME создаёт пару <AVD_DIR>/<имя>.ini и <AVD_DIR>/<имя>.avd
+        return fs.existsSync(Scripts.avdIniPath(name_avd))
     }
 
     async #saveAvd(name_avd, device, android_ver, image_type, arch) {
@@ -169,177 +181,88 @@ class InstallTools {
         await DataBases.AVD_DB.addAvdData(device, android_ver, image_type, arch, name_avd)
     }
 
-    #createInstallScriptLinux(name_avd, device, android_ver, image_type, arch) {
+    /** Запускает скрипт установки AVD и дожидается его результата. */
+    async #installAvd(scriptText, scriptName, name_avd, device, android_ver, image_type, arch) {
+        this.#notif.update("Установка Android", "Подготовка...", 0, 100)
+        let script_path = Scripts.writeScript(path.join(AppPaths.AVD_DIR, name_avd), scriptName, scriptText)
+        const isWindows = process.platform === "win32"
+        const installProc = spawn(
+            isWindows ? 'cmd.exe' : 'sh',
+            isWindows ? ['/c', script_path] : [script_path],
+            // Пути передаём переменными окружения: .bat не содержит не-ASCII текста
+            {env: Scripts.scriptEnvironment()}
+        )
+        await this.#watchInstallProcess(installProc, name_avd, device, android_ver, image_type, arch)
+    }
+
+    /** Этапы скрипт печатает как STAGE:<id>, прогресс — как "<n>%". */
+    #watchInstallProcess(installProc, name_avd, device, android_ver, image_type, arch) {
+        let stage = "Подготовка..."
+        let value = 0
+
+        installProc.stdout.on('data', (data) => {
+            const {stageId, percent} = Scripts.parseProgressChunk(data)
+            if (stageId !== undefined) {
+                stage = Scripts.stageLabelOf(stageId)
+                value = 0
+                this.#notif.update("Установка Android", stage, value, 100)
+            }
+            if (percent !== undefined) {
+                value = percent
+                this.#notif.update("Установка Android", stage, value, 100)
+            }
+            Log.info(`stdout: ${data}`);
+        });
+
+        installProc.stderr.on('data', (data) => {
+            Log.info(String(data))
+        });
+
         return new Promise((resolve, reject) => {
-            this.#notif.update("Установка Android", "Подготовка...", 0, 100)
-            let install = `echo "START: Подготовка..."
-    export ANDROID_HOME="${AppPaths.ANDROID_SDK}"
-    export ANDROID_SDK_ROOT=$ANDROID_HOME
-    
-    yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses > /dev/null
-    echo "START: Установка Android Emulator"
-    yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager emulator
-    echo "START: Установка Platform Tools"
-    yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager platform-tools
-    echo "START: Загрузка Android"
-    yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "system-images;${android_ver};${image_type};${arch}"
-    echo "START: Создание эмулятора Android"
-    $ANDROID_HOME/cmdline-tools/latest/bin/avdmanager create avd -d "${device}" -n ${name_avd} -k "system-images;${android_ver};${image_type};${arch}"`
-
-            let path_script = this.#createScript(install, name_avd, `install.sh`);
-
-            const installProc = spawn('sh', [`${path_script}`]);
-
-            let text = undefined
-            let process = undefined
-            let flag_update_notification = false
-
-            installProc.stdout.on('data', (data) => {
-                if (String(data).includes("START:")) {
-                    flag_update_notification = true
-                    text = data.toString().replace("START: ", "")
-                } else {
-                    flag_update_notification = false
-                }
-                let pattern = new RegExp("\\d+")
-                if (pattern.test(String(data))) {
-                    flag_update_notification = true
-                    process = String(data).match(pattern)
-                } else {
-                    flag_update_notification = false
-                }
-                if (flag_update_notification) this.#notif.update("Установка Android", text, Number(process).toFixed(), 100)
-                Log.info(`stdout: ${data}`);
-            });
-
-            installProc.stderr.on('data', (data) => {
-                Log.info(String(data))
-            });
-
-            installProc.on('close', (code) => {
+            installProc.on('close', async (code) => {
                 Log.info(`child process exited with code ${code}`);
                 if (code !== 0) {
-                    this.#notif.error()
-                    return reject(`child process exited with code ${code}`)
+                    this.#fail(`Скрипт установки завершился с кодом ${code}`)
+                    return reject(new Error(`Скрипт установки завершился с кодом ${code}`))
                 }
                 this.createStartScript(name_avd)
-                this.#saveAvd(name_avd, device, android_ver, image_type, arch)
+                try {
+                    await this.#saveAvd(name_avd, device, android_ver, image_type, arch)
+                } catch (error) {
+                    // База вспомогательная: её сбой не отменяет уже выполненную установку.
+                    Log.error(`Не удалось сохранить AVD в базу: ${error.message ?? error}`)
+                }
+                if (!this.#isAvdInstalled(name_avd)) {
+                    const message = `AVD "${name_avd}" не создан: нет файла ${Scripts.avdIniPath(name_avd)}`
+                    this.#fail(message)
+                    return reject(new Error(message))
+                }
                 resolve(`child process exited with code ${code}`)
             });
 
             installProc.on('error', (err) => {
-                Log.error(`Failed to start child process: ${err}`);
-                this.#notif.error()
-                reject(`Failed to start child process: ${err}`)
+                this.#fail(`Не удалось запустить скрипт установки: ${err.message ?? err}`)
+                reject(err)
             });
         })
     }
 
-    async #createInstallScriptWindows(name_avd, device, android_ver, image_type, arch) {
-        return new Promise((resolve, reject) => {
-            this.#notif.update("Установка Android", "Подготовка...", 0, 100)
-            let install = `echo "START: Подготовка..."
-@echo off
-
-SET JAVA_HOME=${AppPaths.JAVA_DIR}
-SET ANDROID_HOME=${AppPaths.ANDROID_SDK}
-SET ANDROID_SDK_ROOT=%ANDROID_HOME%
-
-echo y|%ANDROID_SDK_ROOT%\\cmdline-tools\\latest\\bin\\sdkmanager.bat --licenses
-echo "START: Установка Android Emulator"
-echo y|%ANDROID_SDK_ROOT%\\cmdline-tools\\latest\\bin\\sdkmanager.bat emulator
-echo "START: Установка Platform Tools"
-echo y|%ANDROID_SDK_ROOT%\\cmdline-tools\\latest\\bin\\sdkmanager.bat platform-tools
-echo "START: Загрузка Android"
-echo y|%ANDROID_SDK_ROOT%\\cmdline-tools\\latest\\bin\\sdkmanager.bat "system-images;${android_ver};${image_type};${arch}"
-echo "START: Создание эмулятора Android"
-%ANDROID_SDK_ROOT%\\cmdline-tools\\latest\\bin\\avdmanager.bat create avd -d "${device}" -n ${name_avd} -k "system-images;${android_ver};${image_type};${arch}"`
-
-            let path_script = this.#createScript(install, name_avd, `install.bat`);
-
-            const installProc = spawn('cmd.exe', ['/c', path_script]);
-
-            let text = undefined
-            let process = undefined
-            let flag_update_notification = false
-
-            installProc.stdout.on('data', (data) => {
-                if (String(data).includes("START:")) {
-                    flag_update_notification = true
-                    text = data.toString().replace("START: ", "").replaceAll('"', '')
-                } else {
-                    flag_update_notification = false
-                }
-                let pattern = new RegExp("\\d+")
-                if (pattern.test(String(data))) {
-                    flag_update_notification = true
-                    process = String(data).match(pattern)
-                } else {
-                    flag_update_notification = false
-                }
-                if (flag_update_notification) this.#notif.update("Установка Android", text, Number(process).toFixed(), 100)
-                Log.info(`stdout: ${data}`);
-            });
-
-            installProc.stderr.on('data', (data) => {
-                Log.info(String(data))
-            });
-
-            installProc.on('close', (code) => {
-                Log.info(`child process exited with code ${code}`);
-                if (code !== 0) {
-                    this.#notif.error()
-                    return reject(`child process exited with code ${code}`)
-                }
-                this.createStartScript(name_avd)
-                this.#saveAvd(name_avd, device, android_ver, image_type, arch)
-                resolve(`child process exited with code ${code}`)
-            });
-
-            installProc.on('error', (err) => {
-                Log.error(`Failed to start child process: ${err}`);
-                this.#notif.error()
-                reject(`Failed to start child process: ${err}`)
-            });
-        })
+    /** Об ошибке сообщаем один раз, даже если её увидели и скрипт, и вызывающий код. */
+    #fail(message) {
+        Log.error(message)
+        if (this.#failed) return
+        this.#failed = true
+        this.#notif.error()
     }
 
     createStartScript(name) {
         if (process.platform === "linux") {
-            let start_emu = `
-export ANDROID_HOME=${AppPaths.ANDROID_SDK}
-export ANDROID_SDK_ROOT=$ANDROID_HOME
-#
-$ANDROID_HOME/emulator/emulator -avd ${name}`
-            let scriptPath = this.#createScript(start_emu, name, `start.sh`)
+            let scriptPath = Scripts.writeScript(path.join(AppPaths.AVD_DIR, name), "start.sh", Scripts.linuxStartScript(name))
             fs.chmodSync(scriptPath, 0o755)
             return scriptPath
         } else if (process.platform === "win32") {
-            let start_emu = `@echo off
-SET JAVA_HOME=${AppPaths.JAVA_DIR}
-SET ANDROID_HOME=${AppPaths.ANDROID_SDK}
-SET ANDROID_SDK_ROOT=%ANDROID_HOME%
-%ANDROID_SDK_ROOT%\\emulator\\emulator -avd ${name}`
-            return this.#createScript(start_emu, name, `start.bat`)
+            return Scripts.writeScript(path.join(AppPaths.AVD_DIR, name), "start.bat", Scripts.windowsStartScript(name))
         }
-    }
-
-    #createScript(text, name_avd, name_script) {
-        let path_scripts = path.join(AppPaths.AVD_DIR, name_avd)
-        let path_script = path.join(path_scripts, name_script)
-        if (!fs.existsSync(path_scripts)) {
-            fs.mkdirSync(path_scripts, { recursive: true });
-            Log.info(`Папка '${path_scripts}' успешно создана`)
-        } else {
-            Log.info(`Папка '${path_scripts}' уже существует`)
-        }
-        if (!fs.existsSync(path_script)) {
-            fs.writeFileSync(path_script, text, "utf-8");
-            Log.info(`Файл '${path_script}' успешно создан`)
-        } else {
-            Log.info(`Файл '${path_script}' уже существует`)
-        }
-        return path_script
     }
 }
 

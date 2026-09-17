@@ -1,4 +1,4 @@
-const { AppLayout, render, Log, Icons, os, Label } = require('chuijs');
+const { AppLayout, render, Log, Icons } = require('chuijs');
 const { MainPage } = require("./views/main_page");
 const { InstallTools } = require('./settings/install_tools');
 const { Android } = require("./src/src")
@@ -15,7 +15,8 @@ class Apps extends AppLayout {
             // title: "Запуск",
             icon: Icons.AUDIO_VIDEO.PLAY_ARROW,
             reverse: true,
-            clickEvent: () => this.#android.startEmulator("name_default")
+            // Имя не задаём: эмулятор определяется по каталогу приложения
+            clickEvent: () => this.#android.startEmulator()
         })
         let stop_emu = AppLayout.BUTTON({
             // title: "Остановка",
@@ -28,11 +29,7 @@ class Apps extends AppLayout {
     install(name_avd, android_device, android_version, android_system_image, android_arch) {
         setTimeout(async () => {
             let install_test = new InstallTools()
-            if (os.platform() === "linux") {
-                await install_test.start(name_avd, android_device, android_version, android_system_image, android_arch)
-            } else if (os.platform() === "win32") {
-                await install_test.start(name_avd, android_device, android_version, android_system_image, android_arch)
-            }
+            await install_test.start(name_avd, android_device, android_version, android_system_image, android_arch)
         }, 2000)
     }
 }

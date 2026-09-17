@@ -10,8 +10,11 @@ class AppPaths {
     ]
     constructor() {}
     static install() {
-        process.env.ANDROID_HOME = this.#paths[1]
-        process.env.ANDROID_SDK_ROOT = this.#paths[1]
+        process.env.ANDROID_HOME = this.ANDROID_SDK
+        process.env.ANDROID_SDK_ROOT = this.ANDROID_SDK
+        // avdmanager и emulator должны работать с AVD внутри каталога приложения,
+        // иначе конфигурация уезжает в ~/.android/avd и проверки в install_tools её не находят.
+        process.env.ANDROID_AVD_HOME = this.AVD_DIR
         for (let path of this.#paths) {
             if (!fs.existsSync(path)) fs.mkdirSync(path, {recursive: true})
         }
